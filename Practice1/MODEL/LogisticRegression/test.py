@@ -8,7 +8,7 @@ with open("spam_model.pkl", "rb") as f:
 vectorizer = model_data["vectorizer"]
 weights = model_data["weights"]
 bias = model_data["bias"]
-threshold = 0.5
+threshold = 0.44 #55 nếu là mô hình balance
 
 
 def sigmoid(z):
