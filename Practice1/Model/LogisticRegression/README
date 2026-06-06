@@ -1,0 +1,321 @@
+# Spam Email Detection using Logistic Regression (Custom Implementation)
+
+## 1. Giới thiệu
+
+Dự án xây dựng mô hình phân loại email Spam/Ham bằng thuật toán Logistic Regression tự cài đặt từ đầu bằng NumPy, kết hợp biểu diễn văn bản bằng TF-IDF.
+
+Mục tiêu:
+
+* Tiền xử lý dữ liệu văn bản.
+* Chuyển đổi văn bản thành vector TF-IDF.
+* Huấn luyện Logistic Regression bằng Gradient Descent.
+* Áp dụng L2 Regularization để giảm overfitting.
+* Đánh giá mô hình bằng các chỉ số Accuracy, Precision, Recall, F1-score và Confusion Matrix.
+* Lưu mô hình để sử dụng cho dự đoán sau này.
+
+---
+
+## 2. Cấu trúc dự án
+
+```
+project/
+│
+├── train_data.csv
+├── train.py
+├── spam_model.pkl
+├── trainl2.log
+└── README.md
+```
+
+Trong đó:
+
+* `train_data.csv`: dữ liệu huấn luyện.
+* `train.py`: chương trình huấn luyện.
+* `spam_model.pkl`: mô hình đã được lưu.
+* `trainl2.log`: file ghi log quá trình huấn luyện.
+* `README.md`: tài liệu hướng dẫn.
+
+---
+
+## 3. Dữ liệu đầu vào
+
+File dữ liệu phải chứa ít nhất hai cột:
+
+| Column | Ý nghĩa        |
+| ------ | -------------- |
+| text   | Nội dung email |
+| spam   | Nhãn phân loại |
+
+Ví dụ:
+
+| text                      | spam |
+| ------------------------- | ---- |
+| Free gift waiting for you | 1    |
+| Meeting at 2 PM tomorrow  | 0    |
+
+Trong đó:
+
+* `1` = Spam
+* `0` = Ham (không phải spam)
+
+---
+
+## 4. Vector hóa văn bản
+
+Dữ liệu văn bản được chuyển đổi bằng TF-IDF.
+
+Cấu hình:
+
+```python
+TfidfVectorizer(
+    lowercase=True,
+    stop_words=None,
+    ngram_range=(1,1)
+)
+```
+
+Ý nghĩa:
+
+* Chuyển toàn bộ văn bản sang chữ thường.
+* Không loại bỏ stop words.
+* Chỉ sử dụng unigram.
+
+---
+
+## 5. Thuật toán Logistic Regression
+
+Mô hình được xây dựng thủ công bằng NumPy.
+
+### Hàm sigmoid
+
+```
+σ(z) = 1 / (1 + e^(-z))
+```
+
+Được dùng để chuyển đầu ra tuyến tính thành xác suất.
+
+### Hàm mất mát
+
+Binary Cross Entropy:
+
+```
+Loss =
+-1/m Σ[y log(p) + (1-y) log(1-p)]
+```
+
+### L2 Regularization
+
+```
+λ/(2m) * Σ(w²)
+```
+
+Mục đích:
+
+* Giảm overfitting.
+* Hạn chế trọng số quá lớn.
+
+---
+
+## 6. Huấn luyện mô hình
+
+Thông số:
+
+```python
+learning_rate = 0.5
+max_iter = 10000
+lambda_ = 0.01
+```
+
+Trong mỗi vòng lặp:
+
+1. Tính đầu ra tuyến tính.
+2. Áp dụng sigmoid.
+3. Tính gradient.
+4. Cập nhật weights và bias.
+5. Ghi log loss.
+
+Ví dụ log:
+
+```
+Iter 0 | train_loss=0.6931
+Iter 100 | train_loss=0.4123
+Iter 200 | train_loss=0.2814
+...
+```
+
+---
+
+## 7. Dự đoán
+
+### Xác suất
+
+```python
+predict_proba(X)
+```
+
+Trả về xác suất email là spam.
+
+Ví dụ:
+
+```
+0.97
+0.82
+0.04
+```
+
+### Phân loại
+
+```python
+predict(X)
+```
+
+Sử dụng threshold:
+
+```python
+0.45
+```
+
+Quy tắc:
+
+```
+P(spam) > 0.45  → Spam
+P(spam) ≤ 0.45 → Ham
+```
+
+---
+
+## 8. Đánh giá mô hình
+
+Các chỉ số được tính:
+
+### Accuracy
+
+```
+(TP + TN) / Total
+```
+
+### Precision
+
+```
+TP / (TP + FP)
+```
+
+### Recall
+
+```
+TP / (TP + FN)
+```
+
+### F1-score
+
+```
+2 * Precision * Recall
+-----------------------
+ Precision + Recall
+```
+
+### Confusion Matrix
+
+```
+[[TN FP]
+ [FN TP]]
+```
+
+Ví dụ:
+
+```
+[[800  27]
+ [ 10 263]]
+```
+
+Ý nghĩa:
+
+* TN = 800
+* FP = 27
+* FN = 10
+* TP = 263
+
+---
+
+## 9. Kết quả huấn luyện
+
+Sau khi huấn luyện, chương trình in:
+
+```python
+Min probability
+Max probability
+Mean probability
+Percentiles
+Accuracy
+F1 Score
+Confusion Matrix
+```
+
+Ví dụ:
+
+```
+TRAIN Accuracy: 0.9663
+TRAIN F1: 0.9343
+```
+
+---
+
+## 10. Lưu mô hình
+
+Mô hình được lưu dưới dạng pickle:
+
+```python
+spam_model.pkl
+```
+
+Nội dung:
+
+```python
+{
+    "vectorizer": vectorizer,
+    "weights": model.weights,
+    "bias": model.bias,
+    "threshold": 0.45
+}
+```
+
+Lưu mô hình:
+
+```python
+with open("spam_model.pkl", "wb") as f:
+    pickle.dump(model_data, f)
+```
+
+---
+
+## 11. Chạy chương trình
+
+Cài đặt thư viện:
+
+```bash
+pip install numpy pandas scikit-learn
+```
+
+Chạy huấn luyện:
+
+```bash
+python train.py
+```
+
+Sau khi hoàn thành:
+
+* Sinh file `spam_model.pkl`
+* Sinh file `trainl2.log`
+* Hiển thị kết quả đánh giá trên màn hình
+
+---
+---
+
+## Tác giả
+
+Dự án phục vụ mục đích học tập và nghiên cứu về:
+
+* Text Classification
+* TF-IDF
+* Logistic Regression
+* Machine Learning từ đầu bằng NumPy
