@@ -1,176 +1,170 @@
-# Phân loại Email Spam: Naive Bayes
+# Spam Email Detection using Multinomial Naive Bayes From Scratch
 
-Tài liệu này hướng dẫn chi tiết về mã nguồn xây dựng thuật toán **Multinomial Naive Bayes** từ đầu bằng Python, NumPy và Pandas. Mô hình được sử dụng cho bài toán phân loại email thành hai lớp: **Spam (1)** và **Ham (0)**.
----
+## 1. Giới thiệu
 
-## Mục lục
+Dự án xây dựng mô hình phân loại email **Spam/Ham** bằng thuật toán **Multinomial Naive Bayes** tự cài đặt từ đầu bằng **NumPy**. Dữ liệu đầu vào đã được vector hóa sẵn, vì vậy phần huấn luyện mô hình sử dụng trực tiếp các ma trận đặc trưng `X_train_balance`, `X_test_balance` và nhãn `y_train_balance`, `y_test_balance`.
 
-1. [Giới thiệu chung](#giới-thiệu-chung)
-2. [Yêu cầu hệ thống & cài đặt](#yêu-cầu-hệ-thống--cài-đặt)
-3. [Chuẩn bị dữ liệu](#chuẩn-bị-dữ-liệu)
+Mục tiêu:
 
----
+* Load dữ liệu đã vector hóa sẵn từ file `.pkl`.
+* Kiểm tra kích thước dữ liệu train/test.
+* Kiểm tra phân phối nhãn Spam/Ham.
+* Xây dựng lớp `MultinomialNaiveBayesFromScratch`.
+* Huấn luyện mô hình bằng xác suất tiên nghiệm và xác suất có điều kiện.
+* Dự đoán nhãn Spam/Ham cho tập test.
+* Đánh giá mô hình bằng Accuracy, Precision, Recall, F1-score, Log Loss và Confusion Matrix.
 
-## Giới thiệu chung
+## 2. Dữ liệu đầu vào
 
-Đoạn mã được phát triển dưới dạng Jupyter Notebook, gồm các bước chính:
+Dữ liệu đã được xử lý và vector hóa trước khi đưa vào mô hình. Mỗi email được biểu diễn dưới dạng vector đặc trưng số.
 
-- Đọc dữ liệu email đã được vector hóa sẵn.
-- Sử dụng dữ liệu đặc trưng TF-IDF với **10.000 đặc trưng**.
-- Xây dựng mô hình **Multinomial Naive Bayes From Scratch**.
-- Huấn luyện mô hình bằng cách tính:
-  - Xác suất tiên nghiệm của từng lớp: `P(Ham)`, `P(Spam)`.
-  - Xác suất có điều kiện của từng đặc trưng theo từng lớp: `P(feature | Ham)`, `P(feature | Spam)`.
-- Dự đoán nhãn bằng cách chọn lớp có xác suất hậu nghiệm cao hơn.
-- Đánh giá mô hình bằng các chỉ số: Accuracy, Precision, Recall, F1-score, Log Loss và Confusion Matrix.
+Ý nghĩa nhãn:
 
----
+| Label | Ý nghĩa |
+|---:|---|
+| `0` | Ham, không phải spam |
+| `1` | Spam |
 
-## Yêu cầu hệ thống & Cài đặt
+## 3. Load dữ liệu
 
-Môi trường thực thi được áp dụng là Python 3.10+ và các thư viện cơ bản.
+Dữ liệu được load bằng `joblib`:
+Mục đích của bước này:
 
-Cài đặt nhanh thông qua `pip`:
+* Đọc dữ liệu đã được lưu sẵn.
+* Chuyển nhãn `y` về kiểu số nguyên.
+* Đảm bảo dữ liệu đầu vào đúng định dạng trước khi huấn luyện.
 
-Các thư viện chính được sử dụng:
+## 4. Thuật toán Multinomial Naive Bayes
+Naive Bayes là thuật toán phân loại dựa trên xác suất Bayes. Trong bài toán này, mô hình học xác suất của từng lớp và xác suất xuất hiện của từng đặc trưng trong mỗi lớp.
+Công thức Bayes:
+P(class | x) = P(x | class) * P(class) / P(x)
+Trong phân loại, ta chọn lớp có xác suất hậu nghiệm lớn nhất:
+ŷ = argmax P(class | x)
+Vì `P(x)` giống nhau cho mọi lớp, mô hình chỉ cần so sánh:
+P(class) * P(x | class)
 
-- `numpy`: xử lý mảng số và tính toán xác suất.
-- `pandas`: hiển thị bảng kết quả.
-- `joblib`: đọc dữ liệu đã lưu dưới dạng `.pkl`.
-- `pathlib`: kiểm tra đường dẫn file.
+## 5. Các xác suất mô hình học
 
----
+### Prior Probability
 
-## Chuẩn bị dữ liệu
-
-Dữ liệu sử dụng là bộ dữ liệu email đã cân bằng và đã được vector hóa sẵn.
-
-Các file đầu vào:
-
-- `X_train_balance.pkl`: đặc trưng train sau vector hóa.
-- `X_test_balance.pkl`: đặc trưng test sau vector hóa.
-- `y_train_balance.pkl`: nhãn train.
-- `y_test_balance.pkl`: nhãn test.
+Prior probability là xác suất xuất hiện của mỗi lớp trong tập train:
 
 
-## Cấu trúc mã nguồn
-
-Mã nguồn được thiết kế thành 3 khối xử lý chính.
-
-### 1. Hàm load dữ liệu
-
-Chương trình sử dụng `joblib` để đọc các file `.pkl`:
-
-Hàm `load_file()` có nhiệm vụ kiểm tra file có tồn tại hay không. Nếu không tìm thấy file, chương trình sẽ báo lỗi rõ ràng.
-
----
-
-### 2. Class `MultinomialNaiveBayesFromScratch`
-
-Đây là phần chính của mô hình. Class này gồm các hàm:
-
-#### `__init__(alpha=1.0)`
-
-Khởi tạo tham số cho mô hình.
-
-
-#### `fit(X, y)`
-
-Hàm huấn luyện mô hình.
-
-Trong quá trình huấn luyện, mô hình tính:
-
-- Prior probability: xác suất xuất hiện của từng lớp.
-- Conditional probability: xác suất từng đặc trưng xuất hiện trong từng lớp.
-
-Công thức smoothing:
+P(Spam) = số email Spam / tổng số email
+P(Ham)  = số email Ham  / tổng số email
+Trong code:
 
 ```python
-smoothed_count = feature_count + self.alpha
+self.class_log_prior_[i] = np.log(X_c.shape[0] / n_samples)
+```
+Mô hình dùng log probability để tránh lỗi tràn số hoặc xác suất quá nhỏ khi nhân nhiều xác suất lại với nhau.
+
+### 6.Conditional Probability
+
+Conditional probability là xác suất của từng đặc trưng khi biết email thuộc một lớp cụ thể:
+
+```text
+P(feature | Spam)
+P(feature | Ham)
+```
+Ý nghĩa:
+
+* `feature_count`: tổng giá trị của từng đặc trưng trong một lớp.
+* `alpha`: tham số smoothing.
+* `feature_log_prob_`: xác suất có điều kiện sau khi lấy log.
+
+## 7. Laplace Smoothing
+
+Tham số `alpha` dùng để tránh trường hợp xác suất bằng 0.
+
+Nếu một từ hoặc đặc trưng không xuất hiện trong lớp Spam hoặc Ham, xác suất của nó có thể bằng 0. Khi nhân xác suất, chỉ cần một giá trị bằng 0 thì toàn bộ xác suất của lớp đó sẽ bằng 0. Vì vậy, smoothing được thêm vào để mô hình ổn định hơn.
+
+Công thức:
+
+```text
+P(feature | class) = (count(feature, class) + alpha) / tổng count sau smoothing
 ```
 
-Việc cộng thêm `alpha` giúp tránh trường hợp xác suất bằng 0 khi một đặc trưng không xuất hiện trong một lớp.
+## 8. Class MultinomialNaiveBayesFromScratch
 
----
+Mô hình được xây dựng theo hướng lập trình hướng đối tượng, gồm các hàm chính:
 
-#### `predict_log_proba(X)`
+| Hàm | Chức năng |
+|---|---|
+| `__init__()` | Khởi tạo tham số `alpha` và các biến cần học |
+| `fit(X, y)` | Huấn luyện mô hình bằng tập train |
+| `predict_log_proba(X)` | Tính log xác suất dự đoán |
+| `predict_proba(X)` | Chuyển log xác suất về xác suất thường |
+| `predict(X)` | Dự đoán nhãn cuối cùng |
 
-Hàm này tính xác suất log cho từng lớp.
+Mục đích:
 
-Mô hình sử dụng log probability để tránh lỗi tràn số khi nhân nhiều xác suất nhỏ.
+* `predict()` dùng để lấy nhãn dự đoán cuối cùng.
+* `predict_proba()` dùng để lấy xác suất dự đoán của từng lớp.
 
-Sau đó dùng kỹ thuật `log-sum-exp` để chuẩn hóa xác suất.
+## 9. Hàm đánh giá mô hình
 
----
+Các giá trị trong Confusion Matrix:
 
-#### `predict_proba(X)`
+| Ký hiệu | Ý nghĩa |
+|---|---|
+| TN | Dự đoán Ham và thực tế là Ham |
+| FP | Dự đoán Spam nhưng thực tế là Ham |
+| FN | Dự đoán Ham nhưng thực tế là Spam |
+| TP | Dự đoán Spam và thực tế là Spam |
 
-Hàm này chuyển log probability về xác suất thông thường:
+Các chỉ số đánh giá:
 
-```python
-return np.exp(self.predict_log_proba(X))
+### Accuracy
+
+```text
+Accuracy = (TP + TN) / (TP + TN + FP + FN)
 ```
 
-Kết quả dùng để tính **Log Loss**.
+Đo tỷ lệ dự đoán đúng trên toàn bộ dữ liệu.
 
----
+### Precision
 
-#### `predict(X)`
-
-Hàm dự đoán nhãn cuối cùng.
-
-Mô hình chọn lớp có xác suất lớn nhất:
-
-```python
-return self.classes_[np.argmax(log_proba, axis=1)]
+```text
+Precision = TP / (TP + FP)
 ```
 
-Nếu xác suất Spam lớn hơn Ham thì dự đoán là Spam, ngược lại dự đoán là Ham.
+Trong các email mô hình dự đoán là Spam, Precision cho biết có bao nhiêu email thực sự là Spam.
 
----
+### Recall
 
-### 3. Hàm đánh giá mô hình
-
-Chương trình tự xây dựng các hàm đánh giá thay vì phụ thuộc hoàn toàn vào thư viện có sẵn.
-
-#### `confusion_values(y_true, y_pred)`
-
-Hàm này tính bốn thành phần của Confusion Matrix:
-
-- **TP**: Spam thật và dự đoán đúng là Spam.
-- **TN**: Ham thật và dự đoán đúng là Ham.
-- **FP**: Ham thật nhưng bị dự đoán nhầm là Spam.
-- **FN**: Spam thật nhưng bị dự đoán nhầm là Ham.
-
----
-
-#### `evaluate(y_true, y_pred)`
-
-Hàm này tính các chỉ số:
-
-- Accuracy
-- Precision
-- Recall
-- F1-score
-- TN, FP, FN, TP
-
-Công thức chính:
-
-```python
-accuracy = (TP + TN) / total
-precision = TP / (TP + FP)
-recall = TP / (TP + FN)
-f1 = 2 * precision * recall / (precision + recall)
+```text
+Recall = TP / (TP + FN)
 ```
 
----
+Trong các email Spam thật, Recall cho biết mô hình phát hiện đúng được bao nhiêu email Spam.
 
-#### `log_loss_score(y_true, y_proba, classes)`
+### F1-score
 
-Hàm này dùng để đánh giá chất lượng xác suất dự đoán của mô hình.
+```text
+F1-score = 2 * Precision * Recall / (Precision + Recall)
+```
 
-Log Loss càng thấp thì xác suất dự đoán càng tốt.
+F1-score là trung bình điều hòa giữa Precision và Recall.
 
-Lưu ý: Naive Bayes không có loss theo epoch như SVM. Vì vậy, Log Loss ở đây chỉ dùng để đánh giá sau khi mô hình đã train xong.
+### Log Loss
 
----
+Log Loss đo mức độ sai lệch giữa xác suất dự đoán và nhãn thật. Giá trị càng thấp thì mô hình dự đoán xác suất càng tốt.
+
+
+## 10. Kết luận
+
+Mô hình **Multinomial Naive Bayes From Scratch** hoạt động rất tốt trên bài toán phân loại email Spam/Ham. Với dữ liệu đã được vector hóa và cân bằng, mô hình đạt kết quả cao trên tập test.
+
+Ưu điểm của mô hình:
+
+* Dễ hiểu và dễ cài đặt.
+* Tốc độ huấn luyện nhanh.
+* Phù hợp với dữ liệu văn bản đã vector hóa.
+* Hiệu quả tốt trong bài toán phân loại Spam/Ham.
+
+Hạn chế:
+
+* Giả định các đặc trưng độc lập với nhau, trong khi thực tế các từ trong văn bản có thể liên quan đến nhau.
+* Kết quả phụ thuộc vào chất lượng vector hóa dữ liệu trước đó.
+* Nếu dữ liệu mới khác nhiều so với dữ liệu train, mô hình có thể cần được huấn luyện lại.
