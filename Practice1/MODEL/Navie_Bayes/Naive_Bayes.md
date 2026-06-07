@@ -8,10 +8,6 @@ Tài liệu này hướng dẫn chi tiết về mã nguồn xây dựng thuật 
 1. [Giới thiệu chung](#giới-thiệu-chung)
 2. [Yêu cầu hệ thống & cài đặt](#yêu-cầu-hệ-thống--cài-đặt)
 3. [Chuẩn bị dữ liệu](#chuẩn-bị-dữ-liệu)
-4. [Cấu trúc mã nguồn](#cấu-trúc-mã-nguồn)
-5. [Kết quả thực nghiệm](#kết-quả-thực-nghiệm)
-6. [Kết quả cuối cùng](#kết-quả-cuối-cùng)
-7. [Tổng kết](#tổng-kết)
 
 ---
 
