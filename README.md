@@ -10,7 +10,23 @@ Repository chứa các bài thực hành môn Machine Learning, bao gồm các b
 Machine_Learning_Practice/
 │
 ├── Practice1/
-│   ├── DATA/
+├── DATA/
+│
+├── Dataset/
+│   ├── train_data.csv
+│   ├── test_data.csv
+│   ├── X_train.pkl
+│   ├── X_test.pkl
+│   ├── y_train.pkl
+│   └── y_test.pkl
+│
+└── Balance_Dataset/
+|   ├── train_balance.csv
+|   ├── test_balance.csv
+|   ├── X_train_balance.pkl
+|   ├── X_test_balance.pkl
+|   ├── y_train_balance.pkl
+|   └── y_test_balance.pkl
 │   ├── MODEL/
 │   │   ├── LinearRegression/
 │   │   ├── NaiveBayes/
