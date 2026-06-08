@@ -1,0 +1,198 @@
+
+#  Random Forest Regressor (From Scratch)
+
+
+##  Giới thiệu
+
+Dự án này cài đặt hoàn toàn **Random Forest Regressor từ đầu (không dùng mô hình sklearn)**.
+
+Mục tiêu:
+
+* Hiểu rõ cách hoạt động bên trong của Random Forest
+* Tự xây dựng Decision Tree
+* Hiểu bagging + variance reduction
+* Xây pipeline ML hoàn chỉnh
+
+---
+
+##  Tổng quan pipeline
+
+```text id="p1"
+Dữ liệu thô
+   ↓
+Tiền xử lý (Preprocessing)
+   ↓
+Decision Tree (tự xây dựng)
+   ↓
+Random Forest (Bagging)
+   ↓
+Trung bình dự đoán
+   ↓
+Đánh giá mô hình
+```
+
+---
+
+##  Kiến trúc Random Forest
+
+```text id="p2"
+             Bootstrap Samples
+        ┌────────┬────────┬────────┐
+        ↓        ↓        ↓
+     Tree 1   Tree 2   Tree 3   ... Tree N
+        ↓        ↓        ↓
+        └────────┴────────┴────────┘
+                    ↓
+         Trung bình tất cả dự đoán
+```
+
+---
+
+## Logic Decision Tree
+
+### Công thức chia nhánh:
+
+```text id="p3"
+Gain = Var(node cha)
+     - (Var trái + Var phải có trọng số)
+```
+
+### Dự đoán tại lá:
+
+```text id="p4"
+ŷ = giá trị trung bình của y trong node lá
+```
+
+---
+
+##  Tính năng chính
+
+### Decision Tree (tự cài đặt)
+
+* Chia node dựa trên giảm phương sai
+* Đệ quy xây cây
+* Giới hạn độ sâu (max_depth)
+* Dừng khi dữ liệu thuần hoặc quá ít mẫu
+* Random feature selection
+
+---
+
+###  Random Forest
+
+* Bootstrap sampling (lấy mẫu có hoàn lại)
+* Nhiều cây độc lập
+* Giảm phương sai mô hình
+* Trung bình kết quả đầu ra
+
+---
+
+###  Tiền xử lý dữ liệu
+
+* One-hot encoding cho biến categorical
+* Trích xuất đặc trưng text:
+
+  * độ dài mô tả
+  * số lượng từ
+* Chuyển toàn bộ về dạng số
+
+---
+
+##  Dataset
+
+Bài toán dự đoán doanh số thương mại điện tử:
+
+| Loại dữ liệu | Ví dụ                      |
+| ------------ | -------------------------- |
+| Giá trị số   | price, discount, ad_spend  |
+| Hành vi      | previous_purchases         |
+| Danh mục     | category, gender, location |
+| Văn bản      | product_description        |
+
+---
+
+##  Kết quả mô hình
+
+```text id="p5"
+Train:
+MAE   ↓ 0.21
+RMSE  ↓ 0.31
+R²    ↑ 0.91
+
+Test:
+MAE   ↓ 0.24
+RMSE  ↓ 0.34
+R²    ↑ 0.88
+```
+
+---
+
+
+##  Minh hoạ mô hình
+
+### Cây quyết định
+
+```text id="p7"
+        [feature <= ngưỡng]
+              /        \
+         Nhánh trái   Nhánh phải
+        (mean y)       (mean y)
+```
+
+---
+
+##  Output
+
+Sau khi train:
+
+```text id="p8"
+test_data.csv
+```
+
+Bao gồm:
+
+* Dữ liệu gốc
+* Cột dự đoán: `y_predict`
+
+---
+
+##  Cách chạy
+
+### 1. Cài thư viện
+
+```bash id="p9"
+pip install numpy pandas scikit-learn
+```
+
+---
+
+### 2. Train model
+
+```bash id="p10"
+python main.py
+```
+
+---
+
+##  Cấu trúc project
+
+```text id="p11"
+.
+├── main.py
+├── RandomForest (tự cài đặt)
+├── retail_train_80.csv
+├── retail_test_20.csv
+├── test_data.csv
+└── README.md
+```
+
+---
+
+##  Kiến thức áp dụng
+
+* Bagging (Bootstrap Aggregation)
+* Bias–Variance Tradeoff
+* Ensemble Learning
+* Decision Tree Regression
+* Variance Reduction
+* Feature Randomization
+
