@@ -114,7 +114,7 @@ class Metrics:
         return np.array([[tn, fp], [fn, tp]])
     
 
-file = r"/Users/hoangphuc.nguyen/Desktop/ML_Practice1/Balance_Data/train_balance.csv"
+file = "train_balance.csv"
 df = pd.read_csv(file)
 X_text = df["text"].astype(str).values
 y = df["spam"].values.astype(int)
