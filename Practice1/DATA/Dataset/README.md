@@ -169,7 +169,7 @@ Chuyển email từ văn bản thành vector số bằng **TF-IDF** (Term Freque
 |---------|---------|-------|
 | `token_pattern` | `r'\b\w{2,}\b'` | Chỉ lấy từ có ít nhất 2 ký tự |
 | `sublinear_tf` | `True` | Dùng log(tf) — giảm ảnh hưởng từ lặp nhiều lần |
-| `min_df` | `5` | Chỉ giữ từ xuất hiện ít nhất 5 emails |
+| `min_df` | `3` | Chỉ giữ từ xuất hiện ít nhất 5 emails |
 | `max_df` | `0.95` | Loại từ xuất hiện trong hơn 95% emails |
 | `ngram_range` | `(1, 2)` | Unigram và bigram |
 | `max_features` | `10.000` | Giới hạn số đặc trưng tối đa |
@@ -197,4 +197,4 @@ Tính Mean TF-IDF của từng token theo từng lớp và trực quan hóa bằ
 | `y_train.pkl` | Nhãn training |
 | `y_test.pkl` | Nhãn testing |
 
-**Tác dụng:** chuyển đổi dữ liệu văn bản thành dạng số thích hợp cho các mô hình Machine Learning (Logistic Regression, SVM, Naive Bayes, Random Forest, ...).
+**Tác dụng:** chuyển đổi dữ liệu văn bản thành dạng số thích hợp cho các mô hình Machine Learning (Logistic Regression, SVM, Naive Bayes, ...).
