@@ -68,9 +68,12 @@ Cấu hình:
 
 ```python
 TfidfVectorizer(
-    lowercase=True,
-    stop_words=None,
-    ngram_range=(1,1)
+    token_pattern=r'\b\w{2,}\b',
+    sublinear_tf=True,      
+    min_df=3, 
+    max_df=0.95,
+    ngram_range=(1,2),
+    max_features=10000
 )
 ```
 
@@ -138,8 +141,8 @@ Ví dụ log:
 
 ```
 Iter 0 | train_loss=0.6931
-Iter 100 | train_loss=0.4123
-Iter 200 | train_loss=0.2814
+Iter 100 | train_loss=0.5002
+Iter 200 | train_loss=0.4540
 ...
 ```
 
@@ -172,14 +175,14 @@ predict(X)
 Sử dụng threshold:
 
 ```python
-0.45
+0.47
 ```
 
 Quy tắc:
 
 ```
-P(spam) > 0.45  → Spam
-P(spam) ≤ 0.45 → Ham
+P(spam) > 0.47  → Spam
+P(spam) ≤ 0.47 → Ham
 ```
 
 ---
@@ -224,16 +227,16 @@ TP / (TP + FN)
 Ví dụ:
 
 ```
-[[800  27]
- [ 10 263]]
+[[3295    8]
+ [   3 1090]]
 ```
 
 Ý nghĩa:
 
-* TN = 800
-* FP = 27
-* FN = 10
-* TP = 263
+* TN = 3295
+* FP = 8
+* FN = 3
+* TP = 1090
 
 ---
 
@@ -254,8 +257,8 @@ Confusion Matrix
 Ví dụ:
 
 ```
-TRAIN Accuracy: 0.9663
-TRAIN F1: 0.9343
+TRAIN Accuracy: 0.9975
+TRAIN F1: 0.9950
 ```
 
 ---
@@ -275,7 +278,7 @@ Nội dung:
     "vectorizer": vectorizer,
     "weights": model.weights,
     "bias": model.bias,
-    "threshold": 0.45
+    "threshold": 0.47
 }
 ```
 
