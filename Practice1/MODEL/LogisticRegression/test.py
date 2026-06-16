@@ -21,7 +21,7 @@ def predict_proba(X):
 def predict(X):
     return (predict_proba(X) > threshold).astype(int)
 
-df = pd.read_csv(r"/Users/hoangphuc.nguyen/Desktop/ML_Practice1/Balance_Data/test_balance.csv")
+df = pd.read_csv("test_balance.csv")
 
 X_text = df["text"].astype(str).values
 y_test = df["spam"].astype(int).values
