@@ -1,1 +1,75 @@
+# README - Pipeline xử lý ảnh bằng K-Means
 
+## Mục tiêu
+Pipeline này thực hiện phân đoạn ảnh bằng thuật toán **K-Means** để giảm số lượng màu sắc của hình ảnh, từ đó tạo ra phiên bản ảnh nén mà vẫn giữ được hình dạng tổng thể.
+
+## Luồng xử lý chính
+
+1. **Đọc ảnh đầu vào**
+   - Ảnh được mở bằng thư viện PIL.
+   - Chuyển sang định dạng RGB để đảm bảo dữ liệu màu nhất quán.
+
+2. **Resize ảnh**
+   - Hàm `resize_with_padding(...)` giữ tỷ lệ khung hình và thay đổi kích thước ảnh sao cho phù hợp với quy trình xử lý.
+   - Ảnh sau khi resize sẽ được dùng làm đầu vào cho bước phân cụm.
+
+3. **Chuyển ảnh thành ma trận pixel**
+   - Mỗi pixel được biểu diễn dưới dạng vector 3 chiều `(R, G, B)`.
+   - Dữ liệu được flatten thành dạng `(S, 3)` với `S` là số pixel.
+
+4. **Huấn luyện K-Means**
+   - Thuật toán chia các pixel thành `K` cụm.
+   - Mỗi cụm có một centroid đại diện cho màu trung bình.
+   - Quá trình lặp lại cho đến khi centroid thay đổi đủ nhỏ hoặc đạt số lần lặp tối đa.
+
+5. **Tạo ảnh nén**
+   - Mỗi pixel được thay bằng centroid của cụm mà nó thuộc về.
+   - Kết quả là ảnh có số màu giảm xuống còn gần bằng số cụm `K`.
+
+6. **Lưu và trực quan hóa**
+   - Ảnh nén được lưu thành file `compressed.jpg`.
+   - Có thể so sánh ảnh gốc và ảnh nén bằng matplotlib.
+
+## Các thành phần quan trọng
+
+### Hàm hỗ trợ
+- `resize_with_padding(img, target_size=(224, 224))`
+  - Giữ tỷ lệ ảnh và thay đổi kích thước phù hợp.
+
+### Lớp `KMeansImage`
+- `initialize_centroids(...)`
+  - Khởi tạo centroid ban đầu ngẫu nhiên.
+- `assign_clusters(...)`
+  - Gán mỗi pixel vào centroid gần nhất.
+- `update_centroids(...)`
+  - Tính centroid mới cho từng cụm.
+- `fit(...)`
+  - Thực hiện vòng lặp huấn luyện K-Means.
+- `compress(...)`
+  - Tạo ảnh đã được biểu diễn lại bằng các centroid.
+
+## Thông số cần chú ý
+- `K`: số cụm màu dùng cho bài toán phân đoạn.
+- `max_iter`: số vòng lặp tối đa của thuật toán.
+- `tol`: ngưỡng dừng khi centroid thay đổi quá ít.
+
+## Files đầu vào và đầu ra
+
+### Đầu vào
+- Ảnh gốc, ví dụ:
+  - `f95aed8502aa31e208630a20b28c808c.jpg`
+  - hoặc `chua.png`
+
+### Đầu ra
+- `compressed.jpg`: ảnh sau khi áp dụng K-Means
+- Các biểu đồ/ma trận màu thể hiện centroid và số lượng pixel trong từng cụm
+
+## Cách chạy
+1. Mở notebook hoặc script liên quan.
+2. Chạy các cell từ đầu đến cuối.
+3. Nhập giá trị `K` khi được yêu cầu.
+4. Kiểm tra file `compressed.jpg` sau khi hoàn tất.
+
+## Ý nghĩa của kết quả
+- Nếu `K` nhỏ, ảnh sẽ được nén mạnh hơn nhưng chi tiết có thể bị mất nhiều.
+- Nếu `K` lớn, ảnh sẽ gần giống ảnh gốc hơn nhưng số màu và độ phức tạp tăng lên.
