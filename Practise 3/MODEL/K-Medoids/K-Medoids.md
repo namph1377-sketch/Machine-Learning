@@ -6,7 +6,7 @@ Trong CRM và Marketing dựa trên dữ liệu, **Phân khúc khách hàng (Cus
 
 Bài toán khai phá cấu trúc tiềm ẩn từ tập **Customer Personality Analysis** — nhân khẩu học (Tuổi, Thu nhập, Hôn nhân, Số con) và hành vi (Chi tiêu, Kênh mua, Thời gian gắn bó, Phản hồi chiến dịch). Mục tiêu: gom nhóm khách hàng tương đồng để tối ưu chăm sóc và cá nhân hóa marketing.
 
-Khác K-Means dùng **centroid** (trung bình, có thể không thuộc tập dữ liệu), **K-Medoids** chọn **medoid** — một khách hàng thực làm đại diện cụm. Notebook triển khai **PAM (Partitioning Around Medoids)** với hoán đổi medoid, robust hơn với outlier và dễ diễn giải nghiệp vụ.
+Nội dung file là xây dựng **Thuật toán K-Medoids**, chọn **medoid** là một khách hàng thực làm đại diện cụm. Notebook triển khai **PAM (Partitioning Around Medoids)** với hoán đổi medoid, robust hơn với outlier và dễ diễn giải nghiệp vụ.
 
 ---
 
