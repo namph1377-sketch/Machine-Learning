@@ -1,219 +1,274 @@
-# Hướng dẫn Làm sạch & Tiền xử lý Dữ liệu Bán lẻ (Retail Sales Data)
+# HƯỚNG DẪN LÀM SẠCH VÀ TIỀN XỬ LÝ DỮ LIỆU BÁN LẺ
 
-Tài liệu này giải thích quy trình làm sạch, khám phá và chuẩn bị dữ liệu từ file `Dataset.ipynb`. Mục tiêu của file code là xử lý bộ dữ liệu `retail_sales_dataset.csv`, tạo đặc trưng mới và chuẩn bị dữ liệu để huấn luyện mô hình dự đoán `sales_amount`. Target cuối cùng được sử dụng là `sales_amount_log`.
+## 1. Mục tiêu xử lý dữ liệu
 
----
+Notebook `Dataset_fixed_keep_cells_scale.ipynb` được dùng để làm sạch và tiền xử lý bộ dữ liệu bán lẻ `retail_sales_dataset.csv`. Mục tiêu cuối cùng là tạo ra hai tập dữ liệu đã sẵn sàng cho bước huấn luyện mô hình dự đoán doanh số bán hàng.
 
-## Mục lục
+Biến mục tiêu chính của bài toán là `sales_amount_log`, được tạo từ `sales_amount` bằng phép biến đổi log nhằm giảm độ lệch phân phối của doanh số. Sau khi xử lý, dữ liệu được chia thành hai file:
 
-1. [Import thư viện và đọc dữ liệu](#1-import-thư-viện-và-đọc-dữ-liệu)  
-2. [Data Overview](#2-data-overview)  
-3. [Missing Data Analysis và Duplicate](#3-missing-data-analysis-và-duplicate)  
-4. [Loại bỏ cột ID](#4-loại-bỏ-cột-id)  
-5. [Univariate Analysis](#5-univariate-analysis)  
-6. [Bivariate / Multivariate Analysis](#6-bivariate--multivariate-analysis)  
-7. [Outlier Detection](#7-outlier-detection)  
-8. [Feature Engineering trước khi split](#8-feature-engineering-trước-khi-split)  
-9. [Split train/test theo thời gian](#9-split-traintest-theo-thời-gian)  
-10. [Rolling feature sau khi split](#10-rolling-feature-sau-khi-split)  
-11. [Encoding categorical variables](#11-encoding-categorical-variables)  
-12. [Scaling đúng cách](#12-scaling-đúng-cách)  
-13. [Lưu dữ liệu sau xử lý](#13-lưu-dữ-liệu-sau-xử-lý)
+- `retail_train_80.csv`: tập huấn luyện, chiếm 80% dữ liệu theo thời gian.
+- `retail_test_20.csv`: tập kiểm tra, chiếm 20% dữ liệu theo thời gian.
+
+Quy trình xử lý được thiết kế theo hướng hạn chế data leakage, đặc biệt ở các bước tạo rolling feature, one-hot encoding và chuẩn hóa dữ liệu.
 
 ---
 
-## 1. Import thư viện và đọc dữ liệu
+## 2. Pipeline tổng quát
 
-Code bắt đầu bằng việc import các thư viện cần thiết và đọc file dữ liệu bán lẻ.
+Quy trình tiền xử lý dữ liệu được thực hiện theo thứ tự sau:
 
-* **Thư viện sử dụng:** `pandas`, `numpy`, `matplotlib.pyplot`, `StandardScaler`.
-* **File dữ liệu:** `retail_sales_dataset.csv`.
-* **Lệnh đọc dữ liệu:** dùng `pd.read_csv()` để đưa dữ liệu vào DataFrame.
-* **Mục tiêu:** chuẩn bị dữ liệu cho bài toán dự đoán doanh số bán hàng.
-
-**Tác dụng:** tạo DataFrame ban đầu để bắt đầu quá trình kiểm tra, phân tích và tiền xử lý dữ liệu.
-
----
-
-## 2. Data Overview
-
-Bước này dùng để xem tổng quan cấu trúc ban đầu của dữ liệu.
-
-* **Kích thước dữ liệu:** `df.shape` cho thấy dữ liệu có **120.000 dòng** và **17 cột**.
-* **Tên cột:** dùng `df.columns.tolist()` để xem toàn bộ tên biến trong dataset.
-* **Kiểu dữ liệu:** dùng `df.info()` để kiểm tra cột nào là số, cột nào là chuỗi.
-* **Thống kê mô tả:** dùng `df.describe(include='all')` để xem count, unique, mean, std, min, max.
-* **Các nhóm thông tin chính:** giao dịch, khách hàng, sản phẩm, giá, giảm giá, phương thức thanh toán, kênh bán hàng và khu vực.
-
-**Tác dụng:** giúp hiểu dữ liệu trước khi xử lý, đồng thời phát hiện sớm các kiểu dữ liệu chưa phù hợp.
+1. Import thư viện cần thiết.
+2. Đọc dữ liệu từ file CSV.
+3. Xem tổng quan dữ liệu.
+4. Kiểm tra missing values và duplicate.
+5. Loại bỏ các cột ID không cần thiết.
+6. Phân tích đơn biến để hiểu phân phối dữ liệu.
+7. Phân tích quan hệ giữa các biến.
+8. Phát hiện outlier bằng boxplot, IQR và Z-score.
+9. Tạo biến mục tiêu `sales_amount_log`.
+10. Xử lý cột thời gian `transaction_date`.
+11. Tạo đặc trưng ngày tháng.
+12. Mã hóa nhóm tuổi khách hàng.
+13. Chia train/test theo thời gian.
+14. Tạo rolling feature `qty_roll_mean_30d` sau khi đã chia train/test.
+15. One-hot encoding sau khi đã chia train/test.
+16. Chuẩn hóa một số cột số bằng StandardScaler.
+17. Lưu dữ liệu đã xử lý thành hai file train/test.
 
 ---
 
-## 3. Missing Data Analysis và Duplicate
+## 3. Import thư viện và đọc dữ liệu
 
-Bước này kiểm tra dữ liệu thiếu và dòng bị trùng lặp.
+Bước đầu tiên là import các thư viện cần thiết cho quá trình xử lý dữ liệu. Các thư viện chính gồm:
 
-* **Kiểm tra missing value:** dùng `df.isnull().sum()` và tính thêm tỷ lệ phần trăm missing.
-* **Kết quả missing:** tất cả các cột đều có `missing_count = 0`.
-* **Kiểm tra duplicate:** dùng `df.duplicated().sum()`.
-* **Kết quả duplicate:** số dòng trùng lặp là `0`.
+- `pandas`: dùng để đọc, xử lý và biến đổi dữ liệu dạng bảng.
+- `numpy`: hỗ trợ xử lý số học và giá trị thiếu.
+- `matplotlib` và `seaborn`: dùng để trực quan hóa dữ liệu.
+- `StandardScaler`: dùng để chuẩn hóa một số đặc trưng số.
 
-**Tác dụng:** xác nhận dữ liệu không có giá trị rỗng và không có dòng trùng, nên không cần điền missing value hoặc xóa duplicate.
-
----
-
-## 4. Loại bỏ cột ID
-
-Code loại bỏ các cột định danh không cần thiết cho mô hình dự đoán.
-
-* **Các cột bị xóa:** `transaction_id`, `customer_id`, `product_id`.
-* **Lý do:** các cột này chỉ là mã định danh, không mô tả trực tiếp hành vi mua hàng hay doanh số.
-* **Kết quả sau khi xóa:** dữ liệu còn **120.000 dòng** và **14 cột**.
-
-**Tác dụng:** giảm nhiễu cho mô hình, tránh việc model học sai theo mã ID thay vì học quy luật thật của dữ liệu.
+Dữ liệu được đọc từ file `retail_sales_dataset.csv`. Sau khi đọc, dữ liệu được đưa vào DataFrame để phục vụ các bước kiểm tra, phân tích và tiền xử lý tiếp theo.
 
 ---
 
-## 5. Univariate Analysis
+## 4. Tổng quan dữ liệu
 
-Bước này phân tích từng biến riêng lẻ để hiểu phân phối dữ liệu.
+Sau khi đọc dữ liệu, notebook kiểm tra cấu trúc ban đầu của dataset. Các thông tin được kiểm tra gồm:
 
-* **Các biến số được kiểm tra:** `quantity`, `unit_price`, `discount_pct`, `sales_amount`.
-* **Thống kê nổi bật:**
-  * `quantity` dao động từ **1 đến 5**.
-  * `unit_price` dao động từ **7.73 đến 493.51**.
-  * `discount_pct` dao động từ **0 đến 30**.
-  * `sales_amount` dao động từ **5.41 đến 2467.55**.
-* **Phân tích theo nhóm:** notebook xem doanh số trung bình theo `category` và `transaction_month`.
+- Số dòng và số cột của dữ liệu.
+- Danh sách tên cột.
+- Kiểu dữ liệu của từng cột.
+- Một số dòng đầu tiên để quan sát dữ liệu thực tế.
+- Thống kê mô tả của các biến số và biến phân loại.
 
-**Tác dụng:** giúp phát hiện biến có phân phối lệch, khoảng giá trị lớn hoặc khả năng có outlier.
+Bước này giúp hiểu dữ liệu ban đầu gồm những nhóm thông tin nào, chẳng hạn như thông tin giao dịch, khách hàng, sản phẩm, giá bán, giảm giá, kênh bán hàng và khu vực.
 
 ---
 
-## 6. Bivariate / Multivariate Analysis
+## 5. Kiểm tra missing values và duplicate
 
-Bước này xem mối quan hệ giữa nhiều biến với nhau và với target `sales_amount`.
+Notebook kiểm tra dữ liệu thiếu bằng cách đếm số lượng giá trị rỗng ở từng cột. Đồng thời, dữ liệu cũng được kiểm tra duplicate để xem có dòng nào bị lặp lại hoàn toàn hay không.
 
-* **Correlation matrix:** dùng `df[num_cols].corr()` để xem tương quan giữa các biến số.
-* **Kết quả đáng chú ý:**
-  * `quantity` có tương quan khá cao với `sales_amount`.
-  * `unit_price` cũng có tương quan khá cao với `sales_amount`.
-  * `discount_pct` có tương quan âm nhẹ với `sales_amount`.
-* **Trực quan hóa:** dùng ma trận tương quan để nhìn nhanh mối liên hệ giữa các biến.
+Kết quả cho thấy dữ liệu không có missing values và không có dòng trùng lặp. Vì vậy, notebook không cần thực hiện bước điền giá trị thiếu hoặc xóa dòng duplicate.
 
-**Tác dụng:** giúp xác định biến nào có ảnh hưởng nhiều đến doanh số và hỗ trợ bước chọn/tạo đặc trưng.
+Bước này quan trọng vì dữ liệu thiếu hoặc trùng lặp có thể làm sai lệch kết quả phân tích và ảnh hưởng đến quá trình huấn luyện mô hình.
 
 ---
 
-## 7. Outlier Detection
+## 6. Loại bỏ các cột ID
 
-Bước này phát hiện giá trị ngoại lai của biến mục tiêu `sales_amount`.
+Các cột định danh như mã giao dịch, mã khách hàng và mã sản phẩm được loại bỏ khỏi dữ liệu dùng cho mô hình. Những cột này chỉ đóng vai trò nhận diện bản ghi, không phản ánh trực tiếp quy luật doanh số.
 
-* **Phương pháp sử dụng:** IQR Method, Z-score và boxplot.
-* **IQR Method:** tính `Q1`, `Q3`, `IQR = Q3 - Q1`, sau đó xác định lower bound và upper bound.
-* **Kết quả IQR:** phát hiện **8.309 outlier**, chiếm khoảng **6.92%** dữ liệu.
-* **Kết quả Z-score:** phát hiện **2.846 outlier**, chiếm khoảng **2.37%** dữ liệu.
-* **Cách xử lý:** chỉ phát hiện, **không xóa outlier**.
+Các cột ID được loại bỏ gồm:
 
-**Tác dụng:** giúp nhận biết target có giá trị doanh số rất cao. Không xóa ngay vì doanh số cao có thể là giao dịch thật, không nhất thiết là lỗi dữ liệu.
+- `transaction_id`
+- `customer_id`
+- `product_id`
 
----
-
-## 8. Feature Engineering trước khi split
-
-Bước này tạo thêm các đặc trưng mới trước khi chia train/test.
-
-* **Log transform target:** tạo cột `sales_amount_log = np.log1p(sales_amount)`.
-* **Xử lý thời gian:** chuyển `transaction_date` sang kiểu datetime.
-* **Tạo feature từ ngày tháng:**
-  * `transaction_year`
-  * `transaction_month`
-  * `transaction_day`
-  * `transaction_dayofweek`
-* **Mã hóa nhóm tuổi:** chuyển `customer_age_group` thành `customer_age_group_encoded`.
-* **Kết quả kiểm tra:** số dòng bị lỗi mapping nhóm tuổi là `0`.
-
-**Tác dụng:** log transform giúp giảm độ lệch của target, còn feature ngày tháng giúp mô hình học được xu hướng theo thời gian.
+Điểm quan trọng là không xóa `quantity` ở bước này. Cột `quantity` vẫn được giữ lại vì cần dùng để tạo đặc trưng rolling mean `qty_roll_mean_30d` ở các bước sau.
 
 ---
 
-## 9. Split train/test theo thời gian
+## 7. Phân tích đơn biến
 
-Dữ liệu được sắp xếp theo `transaction_date`, sau đó chia train/test theo trục thời gian.
+Notebook thực hiện phân tích từng biến riêng lẻ để hiểu rõ phân phối của dữ liệu. Các biến quan trọng được xem xét gồm:
 
-* **Cách chia:** 80% dữ liệu cũ làm train, 20% dữ liệu mới làm test.
-* **Train shape:** `(96000, 20)`.
-* **Test shape:** `(24000, 20)`.
-* **Khoảng thời gian train:** từ `2024-01-01` đến `2025-08-07`.
-* **Khoảng thời gian test:** từ `2025-08-07` đến `2025-12-30`.
-* **Không dùng random split:** vì dữ liệu giao dịch có yếu tố thời gian.
+- `quantity`
+- `unit_price`
+- `discount_pct`
+- `sales_amount`
 
-**Tác dụng:** tránh dùng dữ liệu tương lai để dự đoán quá khứ, phù hợp hơn với bài toán dự đoán doanh số thực tế.
+Bước này giúp nhận diện khoảng giá trị, xu hướng phân phối và khả năng xuất hiện ngoại lai. Ngoài ra, notebook cũng quan sát doanh số theo một số nhóm như danh mục sản phẩm hoặc thời gian giao dịch để hiểu sơ bộ hành vi bán hàng.
 
 ---
 
-## 10. Rolling feature sau khi split
+## 8. Phân tích quan hệ giữa các biến
 
-Bước này tạo đặc trưng trung bình động sau khi đã chia train/test.
+Sau khi phân tích từng biến, notebook xem xét mối quan hệ giữa các biến số với nhau và với biến doanh số. Ma trận tương quan được sử dụng để đánh giá mức độ liên hệ giữa các biến như `quantity`, `unit_price`, `discount_pct` và `sales_amount`.
 
-* **Feature được tạo:** `qty_roll_mean_30d`.
-* **Ý nghĩa:** số lượng bán trung bình trong 30 ngày trước đó của từng sản phẩm.
-* **Cách tính:** nhóm theo `product_name`, sắp xếp theo `transaction_date`, rồi tính rolling mean.
-* **Điểm quan trọng:** rolling feature được tạo **sau khi split** để hạn chế data leakage.
-* **Test data:** không dùng `quantity` của chính tập test để tính lịch sử.
-
-**Tác dụng:** giúp mô hình biết xu hướng bán gần đây của từng sản phẩm, từ đó hỗ trợ dự đoán doanh số tốt hơn.
+Kết quả phân tích giúp xác định những biến có khả năng ảnh hưởng mạnh đến doanh số. Thông thường, `quantity` và `unit_price` có ảnh hưởng lớn đến `sales_amount`, trong khi `discount_pct` có thể có tác động theo hướng khác tùy vào dữ liệu thực tế.
 
 ---
 
-## 11. Encoding categorical variables
+## 9. Phát hiện outlier
 
-Bước này chuyển các biến phân loại dạng chữ sang dạng số.
+Notebook sử dụng nhiều phương pháp để phát hiện outlier trong dữ liệu, đặc biệt là với biến doanh số.
 
-* **Các cột không dùng trực tiếp được drop:** `sales_amount`, `transaction_date`, `quantity`, `customer_age_group`.
-* **One-hot encoding:** dùng `pd.get_dummies()` cho các biến phân loại.
-* **Các biến được mã hóa:** `customer_gender`, `customer_segment`, `product_name`, `category`, `brand`, `payment_method`, `sales_channel`, `region`.
-* **Căn chỉnh cột test:** dùng `reindex` để tập test có cùng cấu trúc cột với tập train.
-* **Kết quả sau encoding:**
-  * Train data: `(96000, 80)`.
-  * Test data: `(24000, 80)`.
-* **Target:** `sales_amount_log` vẫn được giữ trong dataframe.
+Các phương pháp được sử dụng gồm:
 
-**Tác dụng:** biến dữ liệu chữ thành các cột 0/1 để mô hình Machine Learning có thể xử lý.
+- Boxplot để quan sát trực quan giá trị bất thường.
+- IQR Method để xác định các điểm nằm ngoài khoảng hợp lý.
+- Z-score để phát hiện các điểm lệch xa so với trung bình.
+
+Trong bài toán bán lẻ, outlier không nhất thiết là lỗi dữ liệu. Một giao dịch có doanh số cao có thể là giao dịch thật, ví dụ khách hàng mua số lượng lớn hoặc sản phẩm có giá cao. Vì vậy, notebook chỉ phát hiện và phân tích outlier, không xóa trực tiếp các dòng này.
 
 ---
 
-## 12. Scaling đúng cách
+## 10. Tạo biến mục tiêu `sales_amount_log`
 
-Bước này chuẩn hóa các feature số bằng `StandardScaler`.
+Biến `sales_amount` là doanh số gốc của giao dịch. Tuy nhiên, doanh số thường có phân phối lệch phải, tức là phần lớn giao dịch có giá trị vừa hoặc thấp, còn một số ít giao dịch có giá trị rất cao.
 
-* **Các cột được chuẩn hóa:**
-  * `unit_price`
-  * `discount_pct`
-  * `customer_age_group_encoded`
-  * `qty_roll_mean_30d`
-  * `transaction_year`
-  * `transaction_month`
-  * `transaction_day`
-  * `transaction_dayofweek`
-* **Cách làm đúng:** scaler chỉ `fit` trên train và chỉ `transform` trên test.
-* **Không scale target:** `sales_amount_log` là target nên không bị scale chung với feature.
-* **Kết quả train sau scaling:** các feature số có mean xấp xỉ `0` và std xấp xỉ `1`.
+Để giảm độ lệch này, notebook tạo thêm biến `sales_amount_log`. Đây là biến mục tiêu cuối cùng dùng cho mô hình hồi quy dự đoán doanh số.
 
-**Tác dụng:** đưa các biến số về cùng thang đo, giúp các mô hình như Linear Regression, Ridge, Lasso, KNN hoặc SVR học ổn định hơn.
+Việc dùng log transform giúp mô hình học ổn định hơn, giảm ảnh hưởng quá mạnh của các giao dịch có doanh số rất lớn.
 
 ---
 
-## 13. Lưu dữ liệu sau xử lý
+## 11. Xử lý cột thời gian
 
-Bước cuối cùng là lưu dữ liệu đã xử lý thành file CSV.
+Cột `transaction_date` được chuyển về kiểu dữ liệu thời gian để có thể sắp xếp dữ liệu và tạo các đặc trưng liên quan đến ngày tháng.
 
-* **File train:** `retail_train_80.csv`.
-* **File test:** `retail_test_20.csv`.
-* **Final train shape:** `(96000, 80)`.
-* **Final test shape:** `(24000, 80)`.
-* **Target column:** `sales_amount_log`.
-* **Không tách riêng X/y:** target vẫn nằm trong bảng train/test để thuận tiện cho bước train model sau.
+Sau khi chuyển đổi, notebook kiểm tra lại kiểu dữ liệu để đảm bảo `transaction_date` đã được nhận diện đúng là dữ liệu ngày tháng.
 
-**Tác dụng:** tạo dữ liệu sạch, đã được encoding và scaling, sẵn sàng dùng cho mô hình hồi quy dự đoán doanh số.
+Đây là bước quan trọng vì bài toán có yếu tố thời gian, nên train/test không nên chia ngẫu nhiên mà cần chia theo thứ tự thời gian.
 
+---
+
+## 12. Tạo đặc trưng ngày tháng
+
+Từ cột `transaction_date`, notebook tạo thêm các đặc trưng thời gian gồm:
+
+- `transaction_year`: năm giao dịch.
+- `transaction_month`: tháng giao dịch.
+- `transaction_day`: ngày trong tháng.
+- `transaction_dayofweek`: thứ trong tuần.
+
+Các đặc trưng này giúp mô hình học được xu hướng theo thời gian, ví dụ doanh số thay đổi theo tháng, theo ngày trong tuần hoặc theo từng giai đoạn trong năm.
+
+---
+
+## 13. Mã hóa nhóm tuổi khách hàng
+
+Cột `customer_age_group` là biến phân loại dạng nhóm tuổi. Notebook chuyển biến này thành dạng số thông qua cột `customer_age_group_encoded`.
+
+Việc mã hóa nhóm tuổi giúp mô hình có thể sử dụng thông tin tuổi khách hàng trong quá trình học. Sau khi mã hóa, notebook kiểm tra lại để đảm bảo không có nhóm tuổi nào bị lỗi mapping.
+
+---
+
+## 14. Chia train/test theo thời gian
+
+Dữ liệu được sắp xếp theo `transaction_date`, sau đó chia thành train và test theo tỷ lệ 80/20.
+
+- 80% dữ liệu cũ hơn được dùng làm tập train.
+- 20% dữ liệu mới hơn được dùng làm tập test.
+
+Cách chia này phù hợp với bài toán dự đoán doanh số vì trong thực tế, mô hình sẽ dùng dữ liệu quá khứ để dự đoán dữ liệu tương lai. Việc chia theo thời gian giúp tránh tình trạng mô hình nhìn thấy thông tin tương lai trong quá trình huấn luyện.
+
+---
+
+## 15. Tạo rolling feature `qty_roll_mean_30d`
+
+Sau khi đã chia train/test, notebook tạo đặc trưng `qty_roll_mean_30d`. Đây là số lượng bán trung bình trong 30 ngày trước đó của từng sản phẩm.
+
+Điểm quan trọng là rolling feature được tạo sau khi đã split dữ liệu. Việc này giúp tránh data leakage, vì tập test không được sử dụng thông tin từ chính nó hoặc dữ liệu tương lai để tạo đặc trưng.
+
+Với tập train, rolling mean được tính dựa trên lịch sử trước dòng hiện tại. Với tập test, rolling mean chỉ được tính dựa trên dữ liệu lịch sử từ train. Nếu một sản phẩm không có đủ lịch sử trong 30 ngày trước đó, notebook sẽ điền bằng trung bình số lượng bán của sản phẩm đó trong tập train. Nếu vẫn không có, notebook dùng trung bình toàn cục của `quantity` trong train.
+
+Cách xử lý này đảm bảo đặc trưng rolling được tạo hợp lý và không làm rò rỉ thông tin từ test vào train.
+
+---
+
+## 16. One-hot encoding sau khi split
+
+Sau khi tạo xong rolling feature, notebook tiến hành one-hot encoding các biến phân loại.
+
+Các biến phân loại được mã hóa gồm:
+
+- `customer_gender`
+- `customer_segment`
+- `product_name`
+- `category`
+- `brand`
+- `payment_method`
+- `sales_channel`
+- `region`
+
+One-hot encoding được thực hiện sau khi đã chia train/test. Tập train và test được mã hóa riêng, sau đó test được căn chỉnh lại theo đúng danh sách cột của train. Việc này đảm bảo hai tập dữ liệu có cùng số cột, cùng tên cột và cùng thứ tự cột.
+
+Các cột không dùng trực tiếp cho mô hình như `transaction_date`, `quantity`, `sales_amount` và `customer_age_group` được loại bỏ trước khi lưu dữ liệu cuối cùng.
+
+---
+
+## 17. Chuẩn hóa dữ liệu bằng StandardScaler
+
+Notebook sử dụng StandardScaler để chuẩn hóa một số cột số. Scaler được fit trên tập train và chỉ transform trên tập test. Cách làm này đúng quy trình vì test không được tham gia vào quá trình học tham số chuẩn hóa.
+
+Trong phiên bản code hiện tại, các cột được chuẩn hóa gồm:
+
+- `unit_price`
+- `qty_roll_mean_30d`
+
+Hai cột này được chuẩn hóa để đưa về cùng thang đo, giúp mô hình học ổn định hơn. Biến `sales_amount_log` được giữ làm target. Nếu mục tiêu là xử lý đúng chuẩn machine learning, target không nên scale chung với feature.
+
+Tuy nhiên, nếu muốn tái tạo đúng một dataset mẫu cũ đã scale cả target, có thể thêm `sales_amount_log` vào danh sách cột chuẩn hóa. Cách này chỉ nên dùng khi cần làm giống file mẫu, không phải lựa chọn chuẩn nhất cho pipeline ML.
+
+---
+
+## 18. Lưu dữ liệu sau xử lý
+
+Sau khi hoàn tất các bước tiền xử lý, notebook lưu hai file dữ liệu cuối cùng:
+
+- `retail_train_80.csv`
+- `retail_test_20.csv`
+
+Hai file này có cùng cấu trúc cột sau one-hot encoding và reindex. Tập train có 96.000 dòng, tập test có 24.000 dòng. Số lượng cột sau xử lý là 80 cột.
+
+Việc lưu riêng train/test giúp thuận tiện cho bước huấn luyện và đánh giá mô hình ở các notebook tiếp theo.
+
+---
+
+## 19. Kiểm tra dữ liệu đầu ra
+
+Sau khi lưu file, cần kiểm tra lại các điểm sau:
+
+- Train và test có cùng số cột.
+- Train và test có cùng tên cột.
+- Train và test có cùng thứ tự cột.
+- Không còn missing value trong dữ liệu đầu ra.
+- `qty_roll_mean_30d` đã được tạo thành công.
+- Các cột one-hot chỉ chứa giá trị 0 hoặc 1.
+- Các cột được chuẩn hóa có trung bình gần 0 và độ lệch chuẩn gần 1 trên tập train.
+
+Nếu các điều kiện trên đều đạt, dữ liệu đã sẵn sàng để dùng cho bước huấn luyện mô hình.
+
+---
+
+## 20. Tóm tắt các điểm đã sửa cho đúng quy trình
+
+So với phiên bản code ban đầu, pipeline hiện tại đã sửa các lỗi quan trọng sau:
+
+1. Không xóa `quantity` quá sớm vì cần dùng để tạo rolling feature.
+2. Tạo `qty_roll_mean_30d` sau khi đã chia train/test.
+3. Test không dùng `quantity` của chính test để tính rolling mean.
+4. One-hot encoding được thực hiện sau khi chia train/test.
+5. Test được reindex theo train để đảm bảo cùng cấu trúc cột.
+6. StandardScaler chỉ fit trên train và transform trên test.
+7. Không scale nhầm target `sales_amount_log` nếu đi theo chuẩn ML.
+8. File train/test cuối cùng có cùng số cột và sẵn sàng để train model.
+
+---
+
+## 21. Kết luận
+
+Quy trình tiền xử lý dữ liệu đã được xây dựng theo pipeline rõ ràng và phù hợp với bài toán dự đoán doanh số bán hàng. Các bước quan trọng như xử lý thời gian, tạo rolling feature, mã hóa biến phân loại, chuẩn hóa dữ liệu và chia train/test đều được thực hiện theo thứ tự hợp lý.
+
+Điểm quan trọng nhất của pipeline là hạn chế data leakage. Rolling feature được tạo sau split, one-hot encoding được căn chỉnh giữa train và test, và scaler chỉ học tham số từ tập train. Nhờ đó, dữ liệu đầu ra phản ánh đúng tình huống thực tế: mô hình chỉ được học từ dữ liệu quá khứ để dự đoán dữ liệu tương lai.
