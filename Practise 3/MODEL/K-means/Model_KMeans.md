@@ -1,201 +1,239 @@
-# BÁO CÁO TRIỂN KHAI MÔ HÌNH PHÂN CỤM K-MEANS FROM SCRATCH (OOP)
-
----
+# BÁO CÁO TRIỂN KHAI MÔ HÌNH PHÂN CỤM K-MEDOIDS (PAM) FROM SCRATCH
 
 ## 1. Giới thiệu bài toán
-Trong quản trị quan hệ khách hàng (CRM) và Marketing dựa trên dữ liệu (Data-driven Marketing), **Phân khúc khách hàng (Customer Segmentation)** là một bài toán kinh điển thuộc nhóm Học không giám sát (Unsupervised Learning). 
 
-Bài toán đặt ra yêu cầu khai phá cấu trúc tiềm ẩn từ một tập dữ liệu khách hàng chứa các thuộc tính hành vi bao gồm: **Tuổi tác (Age)**, **Thu nhập hàng năm (Annual Income)** và **Điểm chi tiêu (Spending Score)**. Mục tiêu cốt lõi là tự động gom nhóm các khách hàng có sự tương đồng lớn về hành vi vào cùng một phân khúc riêng biệt, giúp doanh nghiệp tối ưu hóa chiến lược chăm sóc khách hàng và cá nhân hóa chiến dịch tiếp thị.
+Trong CRM và Marketing dựa trên dữ liệu, **Phân khúc khách hàng (Customer Segmentation)** là bài toán kinh điển thuộc Học không giám sát.
+
+Bài toán khai phá cấu trúc tiềm ẩn từ tập **Customer Personality Analysis** — nhân khẩu học (Tuổi, Thu nhập, Hôn nhân, Số con) và hành vi (Chi tiêu, Kênh mua, Thời gian gắn bó, Phản hồi chiến dịch). Mục tiêu: gom nhóm khách hàng tương đồng để tối ưu chăm sóc và cá nhân hóa marketing.
+
+Khác K-Means dùng **centroid** (trung bình, có thể không thuộc tập dữ liệu), **K-Medoids** chọn **medoid** — một khách hàng thực làm đại diện cụm. Notebook triển khai **PAM (Partitioning Around Medoids)** với hoán đổi medoid, robust hơn với outlier và dễ diễn giải nghiệp vụ.
 
 ---
 
 ## 2. Mục lục triển khai
-1. [Yêu cầu về Dữ liệu đầu vào & Thư viện hỗ trợ](#3-yêu-cầu-về-dữ-liệu-đầu-vào--thư-viện-hỗ-trợ)
-2. [Cơ sở Lý thuyết của Thuật toán K-Means](#4-cơ-sở-lý-thuyết-của-thuật-toán-k-means)
-3. [Cải tiến Khởi tạo: Cơ chế tối ưu của K-Means++](#5-cải-tiến-khởi-tạo-cơ-chế-tối-ưu-của-k-means)
-4. [Cấu trúc Mã nguồn Chi tiết (Class & Function Architecture)](#6-cấu-trúc-mã-nguồn-chi-tiết-class--function-architecture)
-5. [Phương pháp Kiểm định và Tối ưu hóa Tham số K](#7-phương-pháp-kiểm-định-và-tối-ưu-hóa-tham-số-k)
-6. [Quy trình Đọc kết quả và Đặc tả Phân khúc Khách hàng](#8-quy-trình-đọc-kết-quả-và-đặc-tả-phân-khúc-khách-hàng)
+
+1. [Yêu cầu Dữ liệu đầu vào & Thư viện hỗ trợ](#3-yêu-cầu-dữ-liệu-đầu-vào--thư-viện-hỗ-trợ)
+2. [Cơ sở Lý thuyết K-Medoids (PAM)](#4-cơ-sở-lý-thuyết-k-medoids-pam)
+3. [Cải tiến Khởi tạo: K-Medoids++](#5-cải-tiến-khởi-tạo-k-medoids)
+4. [Cấu trúc Mã nguồn (Class & Function)](#6-cấu-trúc-mã-nguồn-class--function)
+5. [Kiểm định và Tối ưu hóa Tham số K](#7-kiểm-định-và-tối-ưu-hóa-tham-số-k)
+6. [Đọc kết quả & Đặc tả Phân khúc](#8-đọc-kết-quả--đặc-tả-phân-khúc)
 
 ---
 
-## 3. Yêu cầu về Dữ liệu đầu vào & Thư viện hỗ trợ
+## 3. Yêu cầu Dữ liệu đầu vào & Thư viện hỗ trợ
 
-### 3.1. Yêu cầu về dữ liệu đầu vào (`preprocessed_customers.csv`)
-Do công đoạn tiền xử lý dữ liệu được đảm nhiệm bởi một đội ngũ chuyên trách riêng biệt, mô hình K-Means này đặt ra các giả định và tiêu chuẩn bắt buộc đối với file dữ liệu đầu vào như sau:
-* **Định dạng số hóa hoàn toàn (Fully Numerical):** Tất cả các thuộc tính định tính (ví dụ: Giới tính) phải được mã hóa về dạng số (Label Encoding hoặc One-Hot Encoding).
-* **Chuẩn hóa biên độ (Feature Scaling):** Đây là yêu cầu tối quan trọng. Thuật toán K-Means đo lường độ tương đồng dựa trên khoảng cách hình học. Nếu các trường dữ liệu như Thu nhập (hàng chục nghìn USD) giữ nguyên biên độ so với Tuổi (từ 18 đến 70), trường Thu nhập sẽ áp đảo hoàn toàn toán thức tính khoảng cách. Dữ liệu cần được xử lý qua StandardScaler (Z-score normalization) hoặc MinMaxScaler trước khi nạp vào mô hình.
-* **Xử lý khuyết thiếu và nhiễu (Missing values & Outliers):** Tập dữ liệu đảm bảo không chứa giá trị rỗng (NaN) và các điểm dị biệt cực đoan đã được lọc bỏ để tránh làm lệch tâm cụm.
+### 3.1. Dữ liệu đầu vào (`customer_personality_preprocessed.csv`)
 
-### 3.2. Thư viện hỗ trợ tính toán và hiển thị
-Mô hình tuân thủ nghiêm ngặt yêu cầu không sử dụng các thư viện Machine Learning cao cấp (như scikit-learn) để can thiệp vào quá trình tính toán lõi. Các thư viện được dùng bao gồm:
-* `numpy`: Thư viện nền tảng thực hiện các phép toán đại số tuyến tính, tính toán ma trận đa chiều bằng kỹ thuật Vectorization để tối ưu hóa hiệu năng tính toán.
-* `pandas`: Sử dụng để đọc tệp tin CSV cấu trúc và hỗ trợ tổng hợp thông tin thống kê sau phân cụm.
-* `matplotlib.pyplot` & `seaborn`: Phục vụ mục đích trực quan hóa các đồ thị hàm chi phí và biểu đồ phân phối.
+Tiền xử lý do pipeline riêng đảm nhiệm. Mô hình yêu cầu:
 
----
+* **Kích thước:** 2.237 mẫu × 24 cột số.
+* **Đã chuẩn hóa (Z-score):** Giá trị profile cụm là độ lệch so với trung bình, không phải đơn vị gốc.
+* **Số hóa hoàn toàn:** Biến định tính đã mã hóa; không chứa NaN.
+* **PCA chỉ để visualize:** Clustering chạy trên 24 đặc trưng gốc; PCA 2D dùng cho scatter plot.
 
-## 4. Cơ sở Lý thuyết của Thuật toán K-Means
+### 3.2. Đầu ra
 
-Thuật toán K-Means hoạt động theo cơ chế lặp (Iterative) nhằm tối thiểu hóa tổng bình phương khoảng cách từ mỗi điểm dữ liệu đến tâm cụm của nó (gọi là Inertia hoặc Within-Cluster Sum of Squares - WCSS).
+* **CSV:** `customer_personality_clustered_v2.csv` (2.237 × 25) — thêm cột `Cluster`.
+* **Mô hình:** `labels`, `medoid_indices_`, `medoids`, `total_cost_`.
+* **Biểu đồ:** Elbow + Silhouette (K=2→10); scatter PCA 2D kèm medoid (marker X).
 
-Quy trình toán học bao gồm 4 bước lặp tuần hoàn:
-1. **Khởi tạo (Initialization):** Xác định trước số lượng cụm K và chọn ra K điểm làm các tâm cụm ban đầu (Centroids).
-2. **Gán cụm (Assignment):** Với mỗi điểm dữ liệu X_i, tính khoảng cách hình học Euclidean tới tất cả K tâm cụm C_j:
-   `d(X_i, C_j) = sqrt( sum( (X_im - C_jm)^2 ) )`
-   Điểm X_i sẽ được gán vào cụm của tâm C_j gần nó nhất.
-3. **Cập nhật tâm cụm (Update):** Sau khi toàn bộ các điểm đã được gán cụm, tọa độ mới của mỗi tâm cụm C_j được tính toán lại bằng trung bình cộng tọa độ của tất cả các điểm thuộc về cụm đó:
-   `C_j = (1 / |S_j|) * sum(X_i thuộc S_j)`
-   Trong đó S_j là tập hợp các điểm thuộc cụm j.
-4. **Kiểm tra hội tụ (Convergence check):** So sánh sự thay đổi vị trí của các tâm cụm mới so với vòng lặp trước. Nếu khoảng cách dịch chuyển nhỏ hơn một ngưỡng dung sai `tol` xác định trước, hoặc thuật toán đạt tới số vòng lặp tối đa (`max_iters`), quy trình huấn luyện sẽ dừng lại.
+### 3.3. Thư viện
+
+Không dùng `sklearn.cluster` cho lõi phân cụm:
+
+* `numpy` — khoảng cách, PAM, PCA, Silhouette from scratch
+* `pandas` — đọc/ghi CSV, `groupby`, `value_counts`
+* `matplotlib.pyplot` & `seaborn` — Elbow, Silhouette, scatter
 
 ---
 
-## 5. Cải tiến Khởi tạo: Cơ chế tối ưu của K-Means++
+## 4. Cơ sở Lý thuyết K-Medoids (PAM)
 
-### 5.1. Nhược điểm của cơ chế khởi tạo ngẫu nhiên thuần túy (Naive Random Selection)
-Trong phiên bản K-Means truyền thống, K tâm cụm ban đầu được chọn hoàn toàn ngẫu nhiên từ tập dữ liệu. Điều này dẫn tới một rủi ro toán học rất lớn: **Sự hội tụ nghiệm cục bộ (Local Minima)**. Nếu vô tình các tâm cụm ban đầu được chọn quá gần nhau hoặc nằm tập trung trong cùng một nhóm dữ liệu tự nhiên, thuật toán sẽ mất rất nhiều vòng lặp để dịch chuyển, hoặc tệ hơn là phân cụm sai lệch hoàn toàn thực tế cấu trúc dữ liệu.
+K-Medoids tối thiểu hóa **Total Cost** (TDAD) — tổng khoảng cách Euclidean từ mỗi điểm đến medoid cụm của nó.
 
-### 5.2. Giải pháp tối ưu từ K-Means++
-Để khắc phục triệt để điểm yếu này, cấu trúc code hiện tại đã tích hợp thuật toán khởi tạo thông minh **K-Means++**. Nguyên lý cốt lõi của K-Means++ là: *"Các tâm cụm ban đầu nên nằm càng xa nhau càng tốt trong không gian hình học"*.
+| Tiêu chí | K-Means | K-Medoids (PAM) |
+|----------|---------|-----------------|
+| Đại diện cụm | Centroid (trung bình) | Medoid (điểm dữ liệu thực) |
+| Hàm mục tiêu | WCSS / Inertia | Total Cost |
+| Cập nhật | Trung bình các điểm | Hoán đổi medoid nếu Cost giảm |
+| Outlier | Nhạy cảm | Bền hơn |
 
-Quy trình chọn tâm cụm của K-Means++ bao gồm:
-1. Chọn ngẫu nhiên tâm cụm đầu tiên C_1 từ tập dữ liệu.
-2. Với mỗi điểm dữ liệu X_i, tính khoảng cách D(X_i) là khoảng cách ngắn nhất từ nó đến tâm cụm gần nhất đã được chọn.
-3. Chọn tâm cụm tiếp theo từ các điểm dữ liệu với một hàm xác suất phân phối tỉ lệ thuận với bình phương khoảng cách:
-   `P(X_i) = D(X_i)^2 / sum(D(X_j)^2)`
-   Một điểm dữ liệu nằm càng xa các tâm cụm hiện tại thì xác suất nó được chọn làm tâm cụm tiếp theo càng cao.
-4. Lặp lại bước 2 và 3 cho đến khi chọn đủ K tâm cụm.
+**Quy trình 4 bước lặp:**
 
-> **Kết quả:** K-Means++ giúp mô hình hội tụ nhanh hơn một cách đáng kể (giảm số vòng lặp `fit`) và đảm bảo chất lượng nghiệm phân cụm tiệm cận tối ưu toàn cục.
+1. **Khởi tạo:** Chọn K medoid (K-Medoids++).
+2. **Gán cụm:** Tính khoảng cách Euclidean, gán mỗi điểm vào medoid gần nhất:
 
----
+$$
+d(X_i,\, M_j) = \sqrt{\sum_{m=1}^{p} \left(X_{im} - M_{jm}\right)^2}
+$$
 
-## 6. Cấu trúc Mã nguồn Chi tiết (Class & Function Architecture)
+3. **Hoán đổi (Swap):** Thử thay medoid $M_i$ bằng điểm $X_j$; chấp nhận nếu Total Cost giảm.
+4. **Hội tụ:** Dừng khi không còn swap cải thiện, hoặc đạt `max_iters`.
 
-Mô hình được tổ chức theo kiến trúc lập trình hướng đối tượng (OOP) thông qua lớp `KMeansFromScratch` phối hợp cùng hàm độc lập `silhouette_score_from_scratch`.
+**Total Cost (hàm mục tiêu):**
 
-### 6.1. Lớp `KMeansFromScratch`
-Lớp này đóng gói toàn bộ hành vi huấn luyện và dự đoán của thuật toán.
+$$
+J = \sum_{i=1}^{n} \min_{j=1,\ldots,k} d(X_i,\, M_j)
+$$
 
-#### Các thuộc tính khởi tạo (`__init__`)
-* `n_clusters` (default=3): Số lượng cụm K cần phân tách.
-* `max_iters` (default=100): Giới hạn số vòng lặp tối đa để tránh vòng lặp vô hạn nếu dữ liệu dao động liên tục.
-* `tol` (default=1e-4): Ngưỡng hội tụ (Tolerance). Nếu độ dịch chuyển của tất cả tâm cụm nhỏ hơn số này, mô hình tự động dừng.
-* `random_state` (default=42): Giá trị seed cố định nhằm đảm bảo tính tái lập kết quả (reproducibility) trong các lần thực nghiệm.
-* `centroids`: Lưu trữ tọa độ của K tâm cụm sau khi học xong (mảng Numpy).
-* `labels`: Mảng chứa nhãn cụm (từ 0 đến K-1) tương ứng của từng mẫu dữ liệu huấn luyện.
-* `inertia_`: Tổng bình phương khoảng cách lỗi (WCSS) dùng cho phương pháp Elbow.
+**Silhouette (from scratch):**
 
-#### Các phương thức xử lý nội bộ (Private Methods)
-* `_init_centroids_plusplus(self, X)`: Hiện thực hóa lý thuyết K-Means++. Sử dụng toán tử mảng của Numpy để tính ma trận khoảng cách tối thiểu từ mọi điểm đến danh sách các centroid hiện tại và lấy mẫu theo trọng số xác suất `probs = dists**2 / sum(dists**2)`.
-* `_assign_clusters(self, X)`: 
-  * **Giải thuật:** Sử dụng kỹ thuật mở rộng chiều dữ liệu tự động (`np.newaxis`) của Numpy để thực hiện tính toán khoảng cách Euclidean đồng thời giữa N dòng dữ liệu với K tâm cụm mà không cần dùng vòng lặp `for`.
-  * **Code lõi:** `np.linalg.norm(X[:, np.newaxis] - self.centroids, axis=2)` sinh ra ma trận kích thước (N, K). Hàm áp dụng `np.argmin(..., axis=1)` để tìm chỉ số cột có khoảng cách nhỏ nhất, chính là nhãn cụm được gán.
-* `_update_centroids(self, X, labels)`: Duyệt qua từng cụm j, trích xuất các điểm thỏa mãn điều kiện `X[labels == j]` và tính trung bình theo cột toán học thông qua hàm `.mean(axis=0)`. Hàm tích hợp mệnh đề kiểm tra an toàn `if np.any(labels == j)` để giữ nguyên vị trí cũ của centroid trong trường hợp cụm đó bị rỗng (tránh lỗi chia cho 0).
+$$
+s(i) = \frac{b(i) - a(i)}{\max\bigl(a(i),\, b(i)\bigr)}
+$$
 
-#### Các phương thức giao tiếp bên ngoài (Public Methods)
-* `fit(self, X)`: Đóng vai trò là hàm quản lý dòng chảy điều khiển (Control Flow). Hàm gọi phương thức khởi tạo K-Means++, chạy vòng lặp cập nhật liên tục, lưu trữ bản sao `old_centroids = self.centroids.copy()` để đối chiếu điều kiện dừng dựa trên toán thức kiểm tra hội tụ `np.all(np.abs(new_centroids - old_centroids) < self.tol)`. Cuối cùng, hàm tính toán giá trị `self.inertia_`.
-* `predict(self, X)`: Tiếp nhận ma trận dữ liệu mới và gọi hàm `_assign_clusters(X)` để trả về nhãn cụm. Phương thức tích hợp cơ chế kiểm tra lỗi trạng thái mô hình nếu thuộc tính `self.centroids` chưa được khởi tạo.
-
-### 6.2. Hàm đánh giá độc lập `silhouette_score_from_scratch(X, labels)`
-Hàm tính toán chỉ số Silhouette để đánh giá độ chuẩn xác của việc phân cụm độc lập với Class.
-* **Cơ chế tính toán nội bộ:** * Đối với mỗi điểm dữ liệu i thuộc cụm A, hàm sử dụng ma trận broadcasting để tính `a(i)` - khoảng cách trung bình từ i đến tất cả các điểm khác trong cùng cụm A.
-  * Tiếp tục tính khoảng cách trung bình từ điểm i đó đến toàn bộ các điểm thuộc một cụm ngoại lai B (với B khác A). Hàm lặp qua các cụm ngoại lai để tìm giá trị trung bình nhỏ nhất, ký hiệu là `b(i)`.
-  * Điểm Silhouette của một điểm được định nghĩa bằng công thức: `s(i) = (b(i) - a(i)) / max(a(i), b(i))`.
-  * Hàm trả về giá trị trung bình của `s(i)` trên toàn tập dữ liệu bằng lệnh `np.mean(np.nan_to_num(s))`.
+- $a(i)$: khoảng cách trung bình từ điểm $i$ đến các điểm cùng cụm.
+- $b(i)$: khoảng cách trung bình từ điểm $i$ đến một cụm gần nhất khác.
+- Điểm Silhouette = trung bình $s(i)$ trên toàn tập, $\in [-1,\, 1]$.
+- Ma trận khoảng cách $D \in \mathbb{R}^{n \times n}$ tiền tính một lần, tái sử dụng khi quét K.
 
 ---
 
-## 7. Phương pháp Kiểm định và Tối ưu hóa Tham số K
+## 5. Cải tiến Khởi tạo: K-Medoids++
 
-Để xác định số lượng phân khúc khách hàng hợp lý nhất, cấu trúc code thiết lập một vòng lặp quét danh sách tham số K (Hyperparameter Tuning) chạy từ 2 đến 9. Kết quả của quá trình quét này được tổng hợp lên đồ thị hai trục Y song song (Dual Axis Plot).
+Khởi tạo ngẫu nhiên thuần có rủi ro hội tụ cục bộ. Notebook dùng **K-Medoids++** — các medoid ban đầu càng xa nhau càng tốt:
 
-### 7.1. Phương pháp Khuỷu tay (Elbow Method với đường Inertia)
-* **Mục đích trực quan:** Vẽ đồ thị thể hiện mối quan hệ giữa số lượng cụm K và chỉ số Inertia (WCSS). Khi K tăng, Inertia chắc chắn sẽ giảm dần do khoảng cách tới các tâm cụm thu hẹp lại.
-* **Điểm tối ưu:** Điểm tối ưu được xác định tại vị trí đường biểu diễn đột ngột thay đổi độ dốc mạnh mẽ (tạo thành một hình "khuỷu tay"). Tại đó, nếu tiếp tục tăng K thì tốc độ giảm WCSS không còn đáng kể, đồng nghĩa với việc mô hình bắt đầu bị quá khớp (overfitting).
+1. Chọn medoid đầu tiên ngẫu nhiên.
+2. Với mỗi điểm $X_i$ chưa được chọn, tính khoảng cách ngắn nhất tới tập medoid hiện có:
 
-### 7.2. Phương pháp Hệ số Dáng điệu (Silhouette Score Method)
-* **Mục đích trực quan:** Hệ số Silhouette phản ánh độ phân tách rõ ràng giữa các cụm. Giá trị nằm trong khoảng [-1, 1].
-* **Điểm tối ưu:** Chúng ta tìm kiếm giá trị K mà tại đó Silhouette Score đạt giá trị **đỉnh (Local Maximum)**. Điều này chứng tỏ các cụm vừa đạt được sự gắn kết cao bên trong, vừa phân tách rõ rệt với các cụm lân cận.
+$$
+D(X_i) = \min_{M \in \mathcal{M}} d(X_i,\, M)
+$$
 
-> **Mục tiêu của việc Visualize đồ thị đôi:** Giúp nhà phân tích đưa ra quyết định giao thoa (trade-off) hoàn hảo nhất. Một giá trị K lý tưởng là một điểm mà tại đó đồ thị Elbow xuất hiện "khuỷu tay" rõ ràng và đồ thị Silhouette Score đạt giá trị cao vượt trội.
+3. Chọn medoid tiếp theo theo xác suất tỷ lệ với $D(X_i)$:
 
----
+$$
+P(X_i) \propto D(X_i)
+$$
 
-## 8. Quy trình Đọc kết quả và Đặc tả Phân khúc Khách hàng
+4. Lặp đến đủ K medoid (`random_state=42`).
 
-Khi tìm được tham số K tối ưu (trong bài toán mẫu cấu hình mặc định là `optimal_k = 5`), hệ thống tiến hành bước phân tích chân dung khách hàng:
-
-1. **Thống kê mật độ (`value_counts`):** Xác định dung lượng thị trường của từng phân khúc (Cụm nào chiếm đa số, cụm nào thuộc nhóm thiểu số chuyên biệt).
-2. **Hợp nhất dữ liệu đặc trưng (`groupby('Cluster').mean()`):** Tính toán giá trị trung bình của các thuộc tính gốc sinh học và thuộc tính hành vi (Tuổi, Thu nhập, Chi tiêu) cho từng cụm. 
-
-### 8.1. Phương án phân cụm với K = 2 (Góc nhìn Tổng quan)
-
-Với cấu hình $K = 2$, tập dữ liệu được phân chia thành hai thực thể đối lập rõ rệt trên không gian PCA thông qua một ranh giới phân tách cơ học dọc theo trục Thành phần chính 1 (PC1).
-
-#### Bảng chỉ số trung tâm cụm (K = 2)
-| Chỉ số chính | Cluster 0 | Cluster 1 |
-| :--- | :---: | :---: |
-| **Income (Thu nhập)** | **+0.81** | -0.50 |
-| **Children (Con cái)** | **-0.64** | +0.40 |
-| **MntWines (Chi tiêu Rượu)** | **+0.90** | -0.56 |
-| **MntMeatProducts (Chi tiêu Thịt)** | **+0.91** | -0.56 |
-| **NumDealsPurchases (Mua qua Deal)** | -0.19 | **+0.12** |
-| **NumWebVisitsMonth (Lượt ghé Web)** | -0.70 | **+0.43** |
-
-#### Đặc tả chân dung phân khúc
-
-* **Cluster 0: Phân khúc Thượng lưu & Chi tiêu mạnh (Affluent High-Spenders)**
-    * **Nhân khẩu học:** Nhóm khách hàng có thu nhập vượt trội (+0.81), độ tuổi trung bình nhỉnh hơn mặt bằng chung (+0.14) và phần lớn không có con nhỏ hoặc có rất ít con (-0.64).
-    * **Hành vi tiêu dùng:** Mức chi tiêu cực kỳ cao trên tất cả các danh mục sản phẩm, đặc biệt dẫn đầu là Thịt (+0.91), Rượu vang (+0.90) và Cá (+0.81).
-    * **Kênh tương tác:** Ưu tiên mua sắm qua kênh Catalog (+0.94) và Store truyền thống (+0.86). Tần suất ghé thăm Website rất thấp (-0.70), chứng tỏ họ chỉ truy cập Web khi có chủ đích mua sắm rõ ràng thay vì lướt xem tin tức. Nhóm này phản hồi rất tích cực với Campaign 5 (+0.45) và Campaign 1 (+0.38).
-* **Cluster 1: Phân khúc Gia đình Tiết kiệm (Budget-Conscious Families)**
-    * **Nhân khẩu học:** Các hộ gia đình có đông con nhỏ (+0.40) với mức thu nhập dưới trung bình (-0.50).
-    * **Hành vi tiêu dùng:** Cắt giảm chi tiêu tối đa, toàn bộ các chỉ số chi tiêu cho các mặt hàng đều âm sâu (dao động từ -0.39 đến -0.56).
-    * **Kênh tương tác:** Ghé thăm website của cửa hàng rất thường xuyên (+0.43) nhưng tỷ lệ chuyển đổi đơn hàng thấp. Họ nhạy cảm về giá và có xu hướng chỉ phát sinh giao dịch khi có các chương trình khuyến mãi, săn deal (+0.12).
+> Medoid luôn là khách hàng thực → `df.iloc[medoid_indices_]` là chân dung điển hình từng cụm.
 
 ---
 
-### 8.2. Phương án phân cụm với K = 4 (Góc nhìn Chi tiết & Cá nhân hóa)
+## 6. Cấu trúc Mã nguồn (Class & Function)
 
-Khi mở rộng cấu hình lên $K = 4$, nhóm khách hàng "Ít tiền" (Cluster 1 ở phương án $K=2$) được giữ nguyên cấu trúc vì tính đồng nhất cao, trong khi nhóm "Có tiền" (Cluster 0 ở phương án $K=2$) được phân rã sâu sắc thành 3 nhóm khách hàng phụ (Sub-segments) có cá tính và hành vi mua sắm hoàn toàn khác biệt.
+### 6.1. Lớp `KMedoidsFromScratch`
 
-#### Bảng chỉ số trung tâm cụm (K = 4)
-| Chỉ số đặc trưng | Cluster 0 | Cluster 1 | Cluster 2 | Cluster 3 |
+**`__init__`:** `n_clusters`, `max_iters=100`, `tol=1e-4`, `random_state=42`
+
+**Sau `fit`:** `medoids`, `medoid_indices_`, `labels`, `total_cost_`
+
+**Private:** `_init_medoids_plusplus`, `_assign_clusters`, `_assign_clusters_with_medoids`, `_compute_cost`, `_compute_total_cost`
+
+**Public:** `fit(X)` — vòng lặp PAM; `predict(X)` — gán nhãn dữ liệu mới
+
+### 6.2. Hàm hỗ trợ
+
+* `compute_pairwise_distance_matrix(X)` — ma trận Euclidean (n×n)
+* `silhouette_score_from_scratch(X, labels, D=None)` — đánh giá, không train
+* `pca_project` / `pca_transform` — PCA from scratch, chỉ visualize
+
+---
+
+## 7. Kiểm định và Tối ưu hóa Tham số K
+
+Quét $K \in \{2,\, 3,\, \ldots,\, 10\}$, `max_iters=100`, `random_state=42`. Kết quả chính:
+
+| K | Silhouette ↑ | Total Cost ↓ |
+|---|-------------|--------------|
+| 2 | **0.2274** | 9560.04 |
+| 3 | 0.1541 | 9173.91 |
+| 4 | 0.0628 | **8909.62** |
+| 5 | 0.0562 | 8746.22 |
+| 6–10 | 0.06–0.08 | Tiếp tục giảm chậm |
+
+### 7.1. Elbow (Total Cost)
+
+Cost giảm mạnh K=2→3 (−386) và K=3→4 (−264). Từ K=5 trở đi giảm chậm → khuỷu tay quanh **K=3–4**.
+
+### 7.2. Silhouette
+
+K=2 đỉnh (**0.2274**), K=3 còn chấp nhận được (0.1541). $K \geq 4$ suy giảm mạnh — cụm chồng lấn tăng.
+
+> **Trade-off:** K=2/3 tốt về toán học; notebook chọn **`optimal_k = 4`** để có 4 phân khúc hành động được. Có thể đổi K trong Cell 11 mà không train lại (`models_k`).
+
+---
+
+## 8. Đọc kết quả & Đặc tả Phân khúc
+
+Sau khi chọn K: `value_counts` → `groupby('Cluster').mean()` → trích medoid → xuất CSV → scatter PCA.
+
+**Mô hình cuối:** K=4 | Silhouette 0.0628 | Cost 8909.62
+
+| Cụm | Số lượng | Tỷ lệ | `medoid_indices_` |
+|-----|----------|-------|-------------------|
+| 0 | 623 | 27.8% | 234 |
+| 1 | 599 | 26.8% | 841 |
+| 2 | 603 | 27.0% | 766 |
+| 3 | 412 | 18.4% | 364 |
+
+### 8.1. K = 2 (góc nhìn tổng quan — tối ưu toán học)
+
+Silhouette **0.2274** — hai miền tách bạch nhất. Hạn chế: chỉ 2 nhóm đối lập, quá thô cho nhiều chiến lược marketing.
+
+### 8.2. K = 4 (phương án được chọn — Góc nhìn Chi tiết & Cá nhân hóa)
+
+Khi mở rộng lên $K = 4$, nhóm khách hàng thu nhập thấp (tương ứng cụm tiết kiệm ở $K = 2$) được tách thành **hai phân khúc** có hành vi gắn bó khác nhau (C0 vs C3), trong khi nhóm có khả năng chi tiêu cao được phân rã thành **VIP truyền thống** (C1) và **nhóm trung lưu săn deal trên Web** (C2). Medoid của mỗi cụm là một khách hàng thực — có thể trích `df.iloc[medoid_indices_]` để trình bày chân dung điển hình.
+
+#### Bảng chỉ số trung tâm cụm (K = 4, đã chuẩn hóa)
+
+| Chỉ số đặc trưng | C0 | C1 | C2 | C3 |
 | :--- | :---: | :---: | :---: | :---: |
-| **Income (Thu nhập)** | +0.15 | -0.67 | +0.83 | **+1.18** |
-| **Children (Con cái)** | +0.39 | +0.36 | -0.82 | -1.02 |
-| **MntWines (Chi rượu)** | +0.45 | -0.78 | +0.55 | **+1.70** |
-| **MntFruits (Chi trái cây)** | -0.21 | -0.53 | **+1.08** | +0.74 |
-| **MntMeatProducts (Chi thịt)** | -0.18 | -0.64 | +1.07 | **+1.33** |
-| **NumDealsPurchases (Săn Deal)** | **+0.95** | -0.20 | -0.40 | -0.66 |
-| **NumWebPurchases (Mua qua Web)**| **+0.85** | -0.73 | +0.43 | +0.49 |
-| **NumWebVisitsMonth (Ghé Web)** | +0.36 | **+0.43** | -0.96 | -0.95 |
-| **AcceptedCmp5 (Chiến dịch 5)** | -0.27 | -0.28 | -0.28 | **+3.37** |
-| **Response (Phản hồi tổng)** | -0.04 | -0.18 | +0.01 | **+1.22** |
+| **Income (Thu nhập)** | −0.68 | **+0.97** | +0.21 | −0.68 |
+| **Age (Tuổi)** | −0.27 | +0.06 | **+0.44** | −0.32 |
+| **Children (Con cái)** | +0.33 | **−0.94** | +0.38 | +0.31 |
+| **TotalSpending (Tổng chi tiêu)** | **−3.59** | **+5.89** | +0.06 | −3.22 |
+| **MntWines (Chi rượu)** | −0.78 | **+0.84** | +0.47 | −0.73 |
+| **MntMeatProducts (Chi thịt)** | −0.64 | **+1.24** | −0.16 | −0.60 |
+| **MntFruits (Chi trái cây)** | −0.53 | **+1.03** | −0.16 | −0.46 |
+| **NumStorePurchases (Mua tại Store)** | −0.77 | **+0.79** | +0.52 | −0.75 |
+| **NumWebPurchases (Mua qua Web)** | −0.74 | +0.37 | **+0.81** | −0.60 |
+| **NumCatalogPurchases (Mua Catalog)** | −0.72 | **+1.14** | +0.06 | −0.66 |
+| **NumDealsPurchases (Săn Deal)** | −0.24 | −0.50 | **+0.79** | −0.08 |
+| **NumWebVisitsMonth (Ghé Web)** | +0.34 | **−1.06** | +0.28 | **+0.61** |
+| **DaysCustomer (Thời gian gắn bó)** | **−0.46** | −0.01 | +0.32 | +0.25 |
+| **Response (Phản hồi tổng)** | −0.24 | **+0.31** | −0.01 | −0.07 |
+| **AcceptedCmp5 (Chiến dịch 5)** | −0.28 | **+0.64** | −0.15 | −0.28 |
 
 #### Đặc tả chân dung phân khúc
 
-* **Cluster 0: Gia đình Trung lưu Săn Deal (Web-Centric Mid-Income Bargainers)**
-    * **Nhân khẩu học:** Khách hàng trung niên có tuổi (+0.36), thời gian gắn bó dài (+0.37), thu nhập khá (+0.15) và có con nhỏ (+0.39).
-    * **Hành vi:** Tiêu dùng ở mức trung bình, nhưng là "Vua săn deal" thực thụ (+0.95). Họ sở hữu số lượng giao dịch qua Website cao nhất hệ thống (+0.85). Đây là nhóm khách hàng chuyển đổi tốt thông qua các chiến dịch ưu đãi trực tuyến.
-* **Cluster 1: Nhóm Tiết kiệm Triệt để (Hardcore Budget Consumers)**
-    * **Hành vi:** Tương tự như nhóm Cluster 1 ở phương án $K=2$ nhưng ở mức độ cực đoan hơn. Thu nhập thấp nhất hệ thống (-0.67), gần như không chi tiêu cho bất kỳ mặt hàng nào, thường xuyên lướt web (+0.43) nhưng thậm chí không phản hồi với cả các chương trình giảm giá thông thường (-0.20).
-* **Cluster 2: Nhà giàu Truyền thống / Tín đồ Thực phẩm Sạch (Wealthy Store-Shopping Purists)**
-    * **Nhân khẩu học:** Khách hàng thu nhập rất cao (+0.83), hoàn toàn không có con nhỏ (-0.82).
-    * **Hành vi:** Chi tiêu cực mạnh cho các nhóm mặt hàng thực phẩm tươi sống có lợi cho sức khỏe như Trái cây (+1.08), Thịt (+1.07), Cá (+1.17) và Đồ ngọt (+1.01). 
-    * **Kênh tương tác:** Có xu hướng bài trừ công nghệ, điểm ghé thăm Web thấp kỷ lục (-0.96). Họ chỉ tin tưởng mua sắm trực tiếp tại Store cửa hàng (+0.83) hoặc đặt hàng truyền thống qua Catalog (+1.01). Hoàn toàn thờ ơ với quảng cáo số.
-* **Cluster 3: Siêu VIP / Tín đồ Rượu vang & Khuyến mãi Cao cấp (Elite Wine Connoisseurs & Ad-Responders)**
-    * **Nhân khẩu học:** Phân khúc đỉnh chóp của doanh nghiệp với thu nhập cao nhất hệ thống (+1.18), không vướng bận con cái (-1.02).
-    * **Hành vi:** Sẵn sàng vung tiền không tiếc tay cho Rượu vang (+1.70) và các loại Thịt cao cấp (+1.33).
-    * **Điểm cốt lõi:** Điểm đặc trưng tạo nên sự khác biệt của nhóm này là **độ nhạy quảng cáo cực kỳ lớn**. Họ phản hồi áp đảo với tất cả các Campaign, nổi bật là Campaign 5 (+3.37), Campaign 1 (+1.52), Campaign 4 (+1.20) và có tỷ lệ chốt đơn tổng thể cao nhất (+1.22).
+* **C1 — VIP / Thượng lưu Chi tiêu mạnh (Elite High-Spenders) — 599 KH (26.8%)**
+    * **Nhân khẩu học:** Thu nhập cao nhất hệ thống (+0.97), gần như không có con nhỏ (−0.94), tuổi trung bình (+0.06). Thời gian gắn bó ở mức trung tính (−0.01).
+    * **Hành vi tiêu dùng:** Chi tiêu vượt trội toàn danh mục, đặc biệt Thịt (+1.24), Rượu (+0.84), Trái cây (+1.03). Tổng chi tiêu (+5.89) cao gấp nhiều lần các cụm còn lại. Không phụ thuộc deal (−0.50).
+    * **Kênh tương tác:** Ưu tiên mua tại Store (+0.79) và Catalog (+1.14); ghé Web rất ít (−1.06). Phản hồi tích cực với chiến dịch — Campaign 5 (+0.64), Campaign 1 (+0.53), Response (+0.31).
+    * **Chiến lược:** Upsell sản phẩm cao cấp (rượu, thịt), dịch vụ VIP, ưu đãi độc quyền qua Catalog/Store. Tránh spam quảng cáo số — nhóm này mua khi có chủ đích, không lướt Web.
 
----
+* **C2 — Trung lưu / Digital Săn Deal (Web-Centric Mid-Income Bargainers) — 603 KH (27.0%)**
+    * **Nhân khẩu học:** Khách hàng lớn tuổi hơn (+0.44), thu nhập khá (+0.21), có con nhỏ (+0.38), gắn bó lâu (+0.32).
+    * **Hành vi tiêu dùng:** Chi tiêu trung tính (+0.06) — không vung tay như VIP nhưng cũng không cắt giảm triệt để. Là nhóm **"Vua săn deal"** (+0.79), sẵn sàng mua khi có ưu đãi.
+    * **Kênh tương tác:** Số lượng giao dịch qua Web cao nhất (+0.81), mua Store ở mức khá (+0.52). Phản hồi chiến dịch trung tính — cần kích hoạt bằng khuyến mãi cụ thể hơn quảng cáo thương hiệu.
+    * **Chiến lược:** Marketing digital, email/push ưu đãi, combo săn deal, chương trình loyalty dài hạn. Đây là nhóm chuyển đổi tốt qua kênh online khi có incentive rõ ràng.
 
-### 3. Đánh giá và Đề xuất Lựa chọn Phương án
+* **C0 — Tiết kiệm A / Gia đình Ngân sách thấp, Gắn bó ngắn (Short-Tenure Budget Families) — 623 KH (27.8%)**
+    * **Nhân khẩu học:** Thu nhập dưới trung bình (−0.68), trẻ hơn một chút (−0.27), có con nhỏ (+0.33). **Gắn bó ngắn nhất** (−0.46) — khách hàng mới hoặc ít quay lại.
+    * **Hành vi tiêu dùng:** Cắt giảm chi tiêu tối đa — tổng chi tiêu (−3.59) và mọi danh mục (Rượu −0.78, Thịt −0.64) đều âm sâu. Không săn deal (−0.24).
+    * **Kênh tương tác:** Mua hàng qua mọi kênh đều thấp (Store −0.77, Web −0.74, Catalog −0.72). Có lướt Web (+0.34) nhưng chưa chuyển đổi. Phản hồi chiến dịch yếu (Response −0.24).
+    * **Chiến lược:** Ưu đãi entry-level, tăng tần suất ghé thăm, onboarding cho KH mới. Mục tiêu kéo từ "lướt web" sang "mua lần đầu" trước khi họ rời bỏ.
 
-* **Về mặt Toán học:** Phương án $K = 2$ cho chỉ số Silhouette Score cao hơn, thể hiện cấu trúc phân tách giữa 2 miền dữ liệu là lớn và rõ ràng nhất. Tuy nhiên, nó lại giữ mức sai số nội cụm (Inertia/WCSS) lớn, khiến dữ liệu bị gộp quá thô.
-* **Về mặt Ứng dụng Kinh doanh:** **Phương án $K = 4$ hoàn toàn tối ưu và vượt trội.** Việc bóc tách nhóm khách hàng có tiền ra thành 3 nhóm: *Gia đình săn deal trên Web (C0)*, *Người giàu truyền thống mua tại quầy (C2)*, và *Siêu VIP chuộng Rượu vang/Quảng cáo (C3)* giúp phòng Marketing có thể xây dựng các kịch bản cá nhân hóa (Personalization) chính xác, tránh lãng phí ngân sách quảng cáo vào nhóm C2 hoặc tung sai kênh tiếp cận với nhóm C0 và C3.
+* **C3 — Tiết kiệm B / Trung thành Ngân sách thấp, Lướt Web (Loyal Budget Browsers) — 412 KH (18.4%)**
+    * **Nhân khẩu học:** Tương tự C0 về thu nhập (−0.68) và chi tiêu thấp, nhưng **gắn bó lâu hơn** (+0.25 vs −0.46). Có con nhỏ (+0.31), tuổi trẻ hơn trung bình (−0.32).
+    * **Hành vi tiêu dùng:** Tổng chi tiêu vẫn rất thấp (−3.22), toàn bộ danh mục âm. Không phải deal hunter (−0.08) — khác C2 ở chỗ họ không chờ khuyến mãi mà đơn giản là ít mua.
+    * **Kênh tương tác:** **Ghé Web thường xuyên nhất trong nhóm tiết kiệm** (+0.61) nhưng mua Web/Store đều thấp — hành vi "xem nhiều, mua ít". Phản hồi chiến dịch gần như bằng 0.
+    * **Chiến lược:** Giữ chân KH trung thành lâu năm, retargeting nhẹ nhàng, khuyến mãi theo lịch sử mua. Tận dụng thói quen lướt Web để đẩy sản phẩm giá mềm, gói gia đình — biến "browser" thành "buyer" mà không áp lực quá mức.
 
-**Khuyến nghị:** Sử dụng kết quả phân cụm **$K = 4$** làm cơ sở dữ liệu cuối cùng để triển khai các chiến dịch Marketing Automation tiếp theo.
+### 8.3. Đánh giá & Khuyến nghị
+
+| Tiêu chí | K = 2 | K = 3 | K = 4 (chọn) |
+|----------|-------|-------|--------------|
+| Silhouette | **0.2274** | 0.1541 | 0.0628 |
+| Total Cost | 9560 | 9174 | **8910** |
+| Độ chi tiết | Quá thô | 3 nhóm | **4 nhóm** |
+| Hành động | 2 chiến dịch | 3 chiến lược | **4 chiến lược** |
+
+* **Toán học:** K=2 (hoặc K=3) cho Silhouette tốt hơn.
+* **Nghiệp vụ:** K=4 tách được 4 phân khúc hành động rõ ràng: *VIP Store/Catalog (C1)*, *Trung lưu săn deal trên Web (C2)*, *Tiết kiệm gắn bó ngắn (C0)* và *Tiết kiệm trung thành lướt Web (C3)*. Medoid là khách hàng thực → dễ trình bày stakeholder và tránh lãng phí ngân sách (ví dụ: không đẩy quảng cáo số cho C1, không tung deal generic cho C0/C3).
+
+**Khuyến nghị:** Dùng kết quả **K = 4** (`customer_personality_clustered_v2.csv`) làm cơ sở triển khai Marketing Automation.
