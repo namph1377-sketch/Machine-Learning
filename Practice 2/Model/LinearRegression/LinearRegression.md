@@ -82,7 +82,7 @@ b ← b − η · ∂L/∂b
 
 ### So với OLS (README)
 
-| | OLS (`LinearRegression.ipynb`) | GD (`LR_GD.ipynb`) |
+| | OLS (`LinearRegression.ipynb`) | GD (`Linear_Regression_(GD).ipynb`) |
 |--|--|--|
 | Cách tìm `w`, `b` | Normal Equation / `lstsq` (một lần) | Lặp nhiều epoch |
 | Cần scale mạnh? | Ít nhạy hơn | **Rất quan trọng** (lr + feature lớn → overflow) |
@@ -180,7 +180,7 @@ Train R² ≈ Test R² → không có dấu hiệu overfitting rõ.
 
 ```bash
 pip install numpy pandas matplotlib
-jupyter notebook LR_GD.ipynb
+jupyter notebook Linear_Regression_(GD).ipynb
 ```
 
 Chạy **Restart Kernel → Run All** theo đúng thứ tự phase (scale trước khi train).
@@ -191,24 +191,10 @@ Chạy **Restart Kernel → Run All** theo đúng thứ tự phase (scale trư�
 
 ```text
 .
-├── LR_GD.ipynb                 # Linear Regression + Gradient Descent
+├── Linear_Regression_(GD).ipynb                 # Linear Regression + Gradient Descent
 ├── LinearRegression.md         # Tài liệu notebook GD (file này)
-├── LinearRegression.ipynb      # Bản OLS (tham chiếu)
 ├── README.md                   # Tài liệu bản OLS
 ├── retail_train_80.csv
 └── retail_test_20.csv
 ```
 
----
-
-## Kiến thức áp dụng
-
-* Linear Regression
-* Batch Gradient Descent
-* Learning rate & số epoch
-* Feature scaling (z-score) cho continuous features
-* One-hot encoding (giữ nguyên khi scale)
-* Mean Squared Error / RMSE / MAE / R²
-* Log-transform target và **inverse transform** (`np.exp`) khi đánh giá
-* Phân biệt train (`fit`) vs inference (`predict`)
-""")
